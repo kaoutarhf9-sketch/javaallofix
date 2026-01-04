@@ -6,6 +6,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
 import dao.User;
+import dao.Proprietaire; // IMPERATIF : Importer la classe fille
 import metier.GestionUser;
 import metier.IGestionUser;
 
@@ -14,6 +15,10 @@ public class ModernMainFrame extends JFrame {
     // --- GESTION DE L'AFFICHAGE ---
     private CardLayout cardLayout;
     private JPanel mainContentPanel;
+    
+    // --- REFERENCES VERS LES VUES (Pour pouvoir les rafraichir) ---
+    // C'est cette variable qui permet de relancer le chargement des données
+    private ViewBoutique viewBoutique; 
 
     // --- SERVICES METIERS ---
     private IGestionUser metierUser;
@@ -21,14 +26,14 @@ public class ModernMainFrame extends JFrame {
     // --- SESSION ---
     private User currentUser;
 
-    // --- CONSTANTES DE NAVIGATION ---
+    // --- CONSTANTES DE NAVIGATION (Evite les fautes de frappe) ---
     public static final String VUE_ACCUEIL = "ACCUEIL";
     public static final String VUE_LOGIN_PROPRIO = "LOGIN_PROPRIO";
     public static final String VUE_REGISTER_PROPRIO = "REGISTER_PROPRIO";
     public static final String VUE_LOGIN_REPARATEUR = "LOGIN_REPARATEUR";
     public static final String VUE_DASHBOARD_PROPRIO = "DASH_PROPRIO";
-    public static final String VUE_FORM_BOUTIQUE = "FORM_BOUTIQUE";
-    public static final String VUE_LISTE_BOUTIQUE = "LISTE_BOUTIQUE";
+    public static final String VUE_FORM_BOUTIQUE = "FORM_BOUTIQUE"; // Formulaire ajout
+    public static final String VUE_LISTE_BOUTIQUE = "LISTE_BOUTIQUE"; // Liste (Tableau)
     public static final String VUE_DASHBOARD_REPARATEUR = "DASH_REPARATEUR";
 
     public ModernMainFrame() {
@@ -36,7 +41,7 @@ public class ModernMainFrame extends JFrame {
         try {
             this.metierUser = new GestionUser(); 
         } catch (Exception e) {
-            System.err.println("Info: Démarrage sans couche métier réelle.");
+            System.err.println("Info: Démarrage sans couche métier réelle ou erreur DB.");
         }
 
         // 2. Configuration Fenêtre
@@ -61,18 +66,27 @@ public class ModernMainFrame extends JFrame {
     }
 
     private void initViews() {
-        // Vues de base
+        // --- INSTANCIATION DES VUES ---
+        
+        // On crée l'instance de ViewBoutique et on la stocke dans la variable de classe
+        this.viewBoutique = new ViewBoutique(this);
+
+        // --- AJOUT AU CARDLAYOUT ---
+        
+        // Pages Publiques
         mainContentPanel.add(createWelcomePanel(), VUE_ACCUEIL);
         mainContentPanel.add(new ViewLogin(this, metierUser, "Propriétaire"), VUE_LOGIN_PROPRIO);
         mainContentPanel.add(new ViewLogin(this, metierUser, "Réparateur"), VUE_LOGIN_REPARATEUR);
         mainContentPanel.add(new ViewRegister(this, metierUser), VUE_REGISTER_PROPRIO);
 
-        // Vues Boutiques (Propriétaire)
+        // Pages Propriétaire
         mainContentPanel.add(createDashboardProprio(), VUE_DASHBOARD_PROPRIO);
         mainContentPanel.add(new ViewFormBoutique(this), VUE_FORM_BOUTIQUE);
-        mainContentPanel.add(new ViewBoutique(this), VUE_LISTE_BOUTIQUE);
+        
+        // ICI : On ajoute la vue liste avec la clé "LISTE_BOUTIQUE"
+        mainContentPanel.add(this.viewBoutique, VUE_LISTE_BOUTIQUE);
 
-        // Dashboard Réparateur
+        // Pages Réparateur
         mainContentPanel.add(createDashboardReparateur(), VUE_DASHBOARD_REPARATEUR);
     }
 
@@ -80,8 +94,21 @@ public class ModernMainFrame extends JFrame {
     //                                  NAVIGATION & SESSION
     // ========================================================================================
 
+    /**
+     * Méthode centrale pour changer de page
+     */
     public void changerVue(String nomVue) {
+        // 1. Afficher la vue demandée
         cardLayout.show(mainContentPanel, nomVue);
+
+        // 2. LOGIQUE DE RAFRAÎCHISSEMENT
+        // Si on demande à voir la liste des boutiques, on force le rechargement des données
+        if (nomVue.equals(VUE_LISTE_BOUTIQUE)) {
+            if (viewBoutique != null) {
+                System.out.println("Navigation vers LISTE_BOUTIQUE : Rafraîchissement des données...");
+                viewBoutique.refreshTable(); // <--- C'EST LA LIGNE QUI FAIT MARCHER VOTRE TABLEAU
+            }
+        }
     }
 
     public void setCurrentUser(User u) {
@@ -90,6 +117,16 @@ public class ModernMainFrame extends JFrame {
 
     public User getCurrentUser() {
         return this.currentUser;
+    }
+
+    /**
+     * Méthode utilitaire pour éviter les casts (User -> Proprietaire) partout dans le code
+     */
+    public Proprietaire getProprietaireConnecte() {
+        if (currentUser != null && currentUser instanceof Proprietaire) {
+            return (Proprietaire) currentUser;
+        }
+        return null;
     }
 
     // ========================================================================================
@@ -111,7 +148,22 @@ public class ModernMainFrame extends JFrame {
             public void mouseClicked(MouseEvent e) { changerVue(VUE_ACCUEIL); }
         });
 
+        JButton btnLogout = new JButton("Déconnexion");
+        btnLogout.setForeground(Color.RED);
+        btnLogout.setContentAreaFilled(false);
+        btnLogout.setBorderPainted(false);
+        btnLogout.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnLogout.addActionListener(e -> {
+            setCurrentUser(null); // On vide la session
+            changerVue(VUE_ACCUEIL);
+        });
+        
+        JPanel rightNav = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        rightNav.setOpaque(false);
+        rightNav.add(btnLogout);
+
         nav.add(logo, BorderLayout.WEST);
+        nav.add(rightNav, BorderLayout.EAST);
         return nav;
     }
 
@@ -181,7 +233,7 @@ public class ModernMainFrame extends JFrame {
     }
 
     // ========================================================================================
-    //                         DASHBOARD PROPRIO (AVEC BOUTON CENTRAL)
+    //                         DASHBOARD PROPRIO (MENU PRINCIPAL)
     // ========================================================================================
 
     private JPanel createDashboardProprio() {
@@ -200,7 +252,7 @@ public class ModernMainFrame extends JFrame {
         title.setFont(new Font("Segoe UI", Font.BOLD, 28));
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // LE BOUTON AJOUTER AU MILIEU
+        // Bouton 1 : Ajouter
         JButton btnAdd = new JButton(" + Ajouter ma première Boutique ");
         btnAdd.setFont(new Font("Segoe UI", Font.BOLD, 18));
         btnAdd.setBackground(Theme.PRIMARY);
@@ -211,11 +263,16 @@ public class ModernMainFrame extends JFrame {
         btnAdd.setAlignmentX(Component.CENTER_ALIGNMENT);
         btnAdd.addActionListener(e -> changerVue(VUE_FORM_BOUTIQUE));
 
+        // Bouton 2 : Voir la liste (C'est celui qui posait problème)
         JButton btnList = new JButton("Voir mes boutiques existantes");
         btnList.setForeground(Theme.PRIMARY);
+        btnList.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btnList.setContentAreaFilled(false);
         btnList.setBorderPainted(false);
+        btnList.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnList.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        // ACTION : Aller vers la liste (ce qui déclenche refreshTable)
         btnList.addActionListener(e -> changerVue(VUE_LISTE_BOUTIQUE));
 
         centerContent.add(icon);

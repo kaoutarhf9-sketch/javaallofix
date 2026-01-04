@@ -4,6 +4,7 @@ import java.util.List;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
+import javax.persistence.TypedQuery;
 
 import dao.Boutique;
 import dao.Proprietaire;
@@ -17,18 +18,36 @@ public class GestionBoutique implements IGestionBoutique {
 		em = emf.createEntityManager();
 	}
 
+    
+    @Override
+    public List<Boutique> listerBoutiquesDuProprietaire(int idProprietaire) {
+        try {
+            // Requête pour trouver les boutiques liées à l'ID du propriétaire
+            String jpql = "SELECT b FROM Boutique b WHERE b.proprietaire.idU = :idProp";
+            
+            TypedQuery<Boutique> query = em.createQuery(jpql, Boutique.class);
+            query.setParameter("idProp", idProprietaire);
+            
+            return query.getResultList();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
 	@Override
 	public void creerBoutique(Boutique b, int idProprietaire) {
 		try {
 			em.getTransaction().begin();
-			// On cherche le propriétaire pour l'associer à la nouvelle boutique
 			Proprietaire prop = em.find(Proprietaire.class, idProprietaire);
-			if (prop != null) {
+            
+            if (prop != null) {
 				b.setProprietaire(prop);
 				em.persist(b);
 				em.getTransaction().commit();
+                System.out.println("Boutique créée avec succès pour le proprio #" + idProprietaire);
 			} else {
-				System.out.println("Propriétaire introuvable !");
+				System.err.println("Propriétaire introuvable avec ID: " + idProprietaire);
 				em.getTransaction().rollback();
 			}
 		} catch (Exception e) {
@@ -41,10 +60,8 @@ public class GestionBoutique implements IGestionBoutique {
 	public void modifierBoutique(Boutique b) {
 		try {
 			em.getTransaction().begin();
-			// merge permet de mettre à jour une entité détachée dans la base de données
 			em.merge(b);
 			em.getTransaction().commit();
-			System.out.println("Boutique mise à jour avec succès.");
 		} catch (Exception e) {
 			if (em.getTransaction().isActive()) em.getTransaction().rollback();
 			e.printStackTrace();
@@ -55,14 +72,14 @@ public class GestionBoutique implements IGestionBoutique {
 	public void supprimerBoutique(int idBoutique) {
 		try {
 			em.getTransaction().begin();
-			// En JPA, on doit d'abord trouver l'objet avant de le supprimer
 			Boutique b = em.find(Boutique.class, idBoutique);
-			if (b != null) {
+			
+            if (b != null) {
 				em.remove(b);
 				em.getTransaction().commit();
 				System.out.println("Boutique supprimée.");
 			} else {
-				System.out.println("Suppression impossible : Boutique inexistante.");
+				System.err.println("Suppression impossible : Boutique introuvable.");
 				em.getTransaction().rollback();
 			}
 		} catch (Exception e) {
@@ -71,7 +88,6 @@ public class GestionBoutique implements IGestionBoutique {
 		}
 	}
 
-	// Méthode utile pour récupérer une boutique ou lister
 	public Boutique obtenirBoutique(int id) {
 		return em.find(Boutique.class, id);
 	}
