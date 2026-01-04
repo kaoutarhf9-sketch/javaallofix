@@ -6,7 +6,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
 import dao.User;
-import metier.GestionUser; // Assurez-vous d'avoir cette classe ou l'interface
+import metier.GestionUser;
 import metier.IGestionUser;
 
 public class ModernMainFrame extends JFrame {
@@ -14,7 +14,6 @@ public class ModernMainFrame extends JFrame {
     // --- GESTION DE L'AFFICHAGE ---
     private CardLayout cardLayout;
     private JPanel mainContentPanel;
-    private JPanel navbar; // On garde une réf pour pouvoir la modifier si besoin
 
     // --- SERVICES METIERS ---
     private IGestionUser metierUser;
@@ -28,10 +27,12 @@ public class ModernMainFrame extends JFrame {
     public static final String VUE_REGISTER_PROPRIO = "REGISTER_PROPRIO";
     public static final String VUE_LOGIN_REPARATEUR = "LOGIN_REPARATEUR";
     public static final String VUE_DASHBOARD_PROPRIO = "DASH_PROPRIO";
+    public static final String VUE_FORM_BOUTIQUE = "FORM_BOUTIQUE";
+    public static final String VUE_LISTE_BOUTIQUE = "LISTE_BOUTIQUE";
     public static final String VUE_DASHBOARD_REPARATEUR = "DASH_REPARATEUR";
 
     public ModernMainFrame() {
-        // 1. Initialisation Métier (avec Fallback pour éviter les crashs si pas de BDD)
+        // 1. Initialisation Métier
         try {
             this.metierUser = new GestionUser(); 
         } catch (Exception e) {
@@ -46,7 +47,7 @@ public class ModernMainFrame extends JFrame {
         getContentPane().setBackground(Theme.BACKGROUND);
         setLayout(new BorderLayout());
 
-        // 3. Navbar (Haut)
+        // 3. Navbar
         add(createNavbar(), BorderLayout.NORTH);
 
         // 4. Contenu Central (CardLayout)
@@ -54,25 +55,24 @@ public class ModernMainFrame extends JFrame {
         mainContentPanel = new JPanel(cardLayout);
         mainContentPanel.setBackground(Theme.BACKGROUND);
 
-        // --- INITIALISATION DES VUES ---
         initViews();
 
         add(mainContentPanel, BorderLayout.CENTER);
     }
 
     private void initViews() {
-        // Vue 1 : Accueil (Choix du rôle)
+        // Vues de base
         mainContentPanel.add(createWelcomePanel(), VUE_ACCUEIL);
-
-        // Vue 2 & 3 : Login (On passe 'this' pour la navigation)
         mainContentPanel.add(new ViewLogin(this, metierUser, "Propriétaire"), VUE_LOGIN_PROPRIO);
         mainContentPanel.add(new ViewLogin(this, metierUser, "Réparateur"), VUE_LOGIN_REPARATEUR);
-
-        // Vue 4 : Inscription
         mainContentPanel.add(new ViewRegister(this, metierUser), VUE_REGISTER_PROPRIO);
 
-        // Vue 5 & 6 : Dashboards (Placeholders pour l'instant)
+        // Vues Boutiques (Propriétaire)
         mainContentPanel.add(createDashboardProprio(), VUE_DASHBOARD_PROPRIO);
+        mainContentPanel.add(new ViewFormBoutique(this), VUE_FORM_BOUTIQUE);
+        mainContentPanel.add(new ViewBoutique(this), VUE_LISTE_BOUTIQUE);
+
+        // Dashboard Réparateur
         mainContentPanel.add(createDashboardReparateur(), VUE_DASHBOARD_REPARATEUR);
     }
 
@@ -96,37 +96,25 @@ public class ModernMainFrame extends JFrame {
     //                                  COMPOSANTS UI
     // ========================================================================================
 
-    /** Création de la barre de navigation supérieure */
     private JPanel createNavbar() {
         JPanel nav = new JPanel(new BorderLayout());
-        nav.setBackground(Color.WHITE); // Blanc pour faire pro
+        nav.setBackground(Color.WHITE);
         nav.setPreferredSize(new Dimension(1000, 70));
-        nav.setBorder(BorderFactory.createMatteBorder(0,0,1,0, new Color(230,230,230))); // Bordure bas
+        nav.setBorder(BorderFactory.createMatteBorder(0,0,1,0, new Color(230,230,230)));
 
-        // Logo
         JLabel logo = new JLabel("⚡ AlloFix Console");
         logo.setForeground(Theme.PRIMARY);
         logo.setFont(new Font("Segoe UI", Font.BOLD, 22));
         logo.setBorder(new EmptyBorder(0, 30, 0, 0));
         logo.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
-        // Retour accueil au clic sur logo
         logo.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent e) { changerVue(VUE_ACCUEIL); }
         });
 
-        // Version Badge
-        JLabel badge = new JLabel("v1.0 Enterprise  ");
-        badge.setForeground(Theme.TEXT_LIGHT);
-        badge.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        badge.setBorder(new EmptyBorder(0, 0, 0, 30));
-
         nav.add(logo, BorderLayout.WEST);
-        nav.add(badge, BorderLayout.EAST);
         return nav;
     }
 
-    /** Création de la page d'accueil avec les 2 cartes de choix */
     private JPanel createWelcomePanel() {
         JPanel p = new JPanel(new GridBagLayout());
         p.setBackground(Theme.BACKGROUND);
@@ -135,60 +123,31 @@ public class ModernMainFrame extends JFrame {
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
         content.setOpaque(false);
 
-        // Textes
         JLabel title = new JLabel("Bienvenue sur AlloFix");
         title.setFont(new Font("Segoe UI", Font.BOLD, 32));
         title.setForeground(Theme.TEXT_DARK);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel sub = new JLabel("Sélectionnez votre espace de travail pour continuer");
-        sub.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        sub.setForeground(Theme.TEXT_GRAY);
-        sub.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        // Conteneur des cartes (FlowLayout pour les mettre côte à côte)
         JPanel cardsContainer = new JPanel(new FlowLayout(FlowLayout.CENTER, 40, 40));
         cardsContainer.setOpaque(false);
 
-        // Carte 1 : Propriétaire
-        cardsContainer.add(createRoleCard(
-            "Espace Propriétaire", 
-            "Gérez vos boutiques, vos réparateurs et suivez vos revenus.", 
-            "🏢", 
-            e -> changerVue(VUE_LOGIN_PROPRIO)
-        ));
-
-        // Carte 2 : Réparateur
-        cardsContainer.add(createRoleCard(
-            "Espace Réparateur", 
-            "Accédez aux tickets, mettez à jour les status et consultez votre planning.", 
-            "🛠️", 
-            e -> changerVue(VUE_LOGIN_REPARATEUR)
-        ));
+        cardsContainer.add(createRoleCard("Espace Propriétaire", "Gérez vos boutiques et revenus.", "🏢", e -> changerVue(VUE_LOGIN_PROPRIO)));
+        cardsContainer.add(createRoleCard("Espace Réparateur", "Accédez aux tickets et planning.", "🛠️", e -> changerVue(VUE_LOGIN_REPARATEUR)));
 
         content.add(title);
-        content.add(Box.createVerticalStrut(10));
-        content.add(sub);
         content.add(Box.createVerticalStrut(20));
         content.add(cardsContainer);
-
         p.add(content);
         return p;
     }
 
-    /** Crée une carte de choix de rôle (Design "ServiceCard") */
     private JPanel createRoleCard(String title, String desc, String icon, ActionListener action) {
         JPanel card = new JPanel() {
-            @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                // Ombre
                 g2.setColor(new Color(0,0,0,15));
                 g2.fillRoundRect(5, 5, getWidth()-10, getHeight()-10, 30, 30);
-                
-                // Fond Blanc
                 g2.setColor(Color.WHITE);
                 g2.fillRoundRect(0, 0, getWidth()-5, getHeight()-5, 30, 30);
                 g2.dispose();
@@ -198,99 +157,94 @@ public class ModernMainFrame extends JFrame {
         card.setPreferredSize(new Dimension(300, 320));
         card.setOpaque(false);
         card.setBorder(new EmptyBorder(30, 30, 30, 30));
-        card.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // Icone
         JLabel lblIcon = new JLabel(icon);
         lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 50));
         lblIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // Titre
         JLabel lblTitle = new JLabel(title);
         lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
-        lblTitle.setForeground(Theme.TEXT_DARK);
         lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // Description
-        JTextArea txtDesc = new JTextArea(desc);
-        txtDesc.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        txtDesc.setForeground(Theme.TEXT_GRAY);
-        txtDesc.setWrapStyleWord(true);
-        txtDesc.setLineWrap(true);
-        txtDesc.setEditable(false);
-        txtDesc.setOpaque(false);
-        txtDesc.setAlignmentX(Component.CENTER_ALIGNMENT);
-        txtDesc.setBorder(new EmptyBorder(15, 0, 15, 0));
-
-        // Bouton
         JButton btn = new JButton("Accéder");
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btn.setBackground(Theme.PRIMARY);
         btn.setForeground(Color.WHITE);
-        btn.setFocusPainted(false);
-        btn.setBorderPainted(false);
         btn.setAlignmentX(Component.CENTER_ALIGNMENT);
         btn.addActionListener(action);
-
-        // Interaction Clic sur toute la carte
-        card.addMouseListener(new MouseAdapter() {
-            public void mouseClicked(MouseEvent e) { action.actionPerformed(null); }
-            public void mouseEntered(MouseEvent e) { card.repaint(); } // Pourrait ajouter un effet hover ici
-        });
 
         card.add(lblIcon);
         card.add(Box.createVerticalStrut(15));
         card.add(lblTitle);
-        card.add(txtDesc);
-        card.add(Box.createVerticalGlue()); // Pousse le bouton vers le bas
+        card.add(Box.createVerticalGlue());
         card.add(btn);
-
         return card;
     }
 
     // ========================================================================================
-    //                              DASHBOARDS (PLACEHOLDERS)
+    //                         DASHBOARD PROPRIO (AVEC BOUTON CENTRAL)
     // ========================================================================================
 
     private JPanel createDashboardProprio() {
-        return createSimplePage("Tableau de Bord Propriétaire", "Gérez vos boutiques ici.", Theme.NAVY);
+        JPanel p = new JPanel(new GridBagLayout());
+        p.setBackground(Theme.BACKGROUND);
+
+        JPanel centerContent = new JPanel();
+        centerContent.setLayout(new BoxLayout(centerContent, BoxLayout.Y_AXIS));
+        centerContent.setOpaque(false);
+
+        JLabel icon = new JLabel("🏪");
+        icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 80));
+        icon.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel title = new JLabel("Gestion des Boutiques");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // LE BOUTON AJOUTER AU MILIEU
+        JButton btnAdd = new JButton(" + Ajouter ma première Boutique ");
+        btnAdd.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        btnAdd.setBackground(Theme.PRIMARY);
+        btnAdd.setForeground(Color.WHITE);
+        btnAdd.setPreferredSize(new Dimension(350, 65));
+        btnAdd.setMaximumSize(new Dimension(350, 65));
+        btnAdd.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnAdd.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnAdd.addActionListener(e -> changerVue(VUE_FORM_BOUTIQUE));
+
+        JButton btnList = new JButton("Voir mes boutiques existantes");
+        btnList.setForeground(Theme.PRIMARY);
+        btnList.setContentAreaFilled(false);
+        btnList.setBorderPainted(false);
+        btnList.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnList.addActionListener(e -> changerVue(VUE_LISTE_BOUTIQUE));
+
+        centerContent.add(icon);
+        centerContent.add(Box.createVerticalStrut(20));
+        centerContent.add(title);
+        centerContent.add(Box.createVerticalStrut(40));
+        centerContent.add(btnAdd);
+        centerContent.add(Box.createVerticalStrut(15));
+        centerContent.add(btnList);
+
+        p.add(centerContent);
+        return p;
     }
 
     private JPanel createDashboardReparateur() {
-        return createSimplePage("Espace Technique", "Vos tickets de réparation.", Theme.PRIMARY);
+        return createSimplePage("Espace Technique", "Tickets assignés", Theme.PRIMARY);
     }
 
     private JPanel createSimplePage(String title, String subtitle, Color color) {
         JPanel p = new JPanel(new BorderLayout());
         p.setBackground(Theme.BACKGROUND);
-
         JLabel lbl = new JLabel(title, SwingConstants.CENTER);
         lbl.setFont(new Font("Segoe UI", Font.BOLD, 32));
         lbl.setForeground(color);
-        lbl.setBorder(new EmptyBorder(50, 0, 10, 0));
-
-        JLabel sub = new JLabel(subtitle, SwingConstants.CENTER);
-        sub.setFont(new Font("Segoe UI", Font.PLAIN, 18));
-        sub.setForeground(Theme.TEXT_GRAY);
-
-        JButton logout = new JButton("Se Déconnecter");
-        logout.setBackground(Theme.TEXT_LIGHT);
-        logout.setForeground(Color.WHITE);
-        logout.addActionListener(e -> {
-            currentUser = null;
-            changerVue(VUE_ACCUEIL);
-        });
-
-        JPanel center = new JPanel(); center.setOpaque(false); center.add(logout);
-
-        p.add(lbl, BorderLayout.NORTH);
-        p.add(sub, BorderLayout.CENTER);
-        p.add(center, BorderLayout.SOUTH);
+        p.add(lbl, BorderLayout.CENTER);
         return p;
     }
 
     public static void main(String[] args) {
-        // Activation du lissage de texte
         System.setProperty("awt.useSystemAAFontSettings", "on");
         System.setProperty("swing.aatext", "true");
         SwingUtilities.invokeLater(() -> new ModernMainFrame().setVisible(true));
