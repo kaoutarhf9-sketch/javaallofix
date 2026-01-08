@@ -3,15 +3,21 @@
 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
 xsi:schemaLocation="http://java.sun.com/xml/ns/persistence 
 http://java.sun.com/xml/ns/persistence/persistence_2_0.xsd ">
+  
   <persistence-unit name="AlloFix">
   	<provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+  	
+    <exclude-unlisted-classes>false</exclude-unlisted-classes>
+
   	<properties>
-	  	<property name="hibernate.connection.url" value= "jdbc:mysql://127.0.0.1:3306/AlloFix?createDatabaseIfNotExist=true"/>
+	  	<property name="hibernate.connection.url" value="jdbc:mysql://127.0.0.1:3306/AlloFixfinal?createDatabaseIfNotExist=true"/>
 	  	<property name="hibernate.connection.user" value="root"/>
 	  	<property name="hibernate.connection.password" value=""/>
 	  	<property name="hibernate.connection.driver_class" value="com.mysql.cj.jdbc.Driver"/>
 	  	<property name="hibernate.show_sql" value="true"/>
-	  	<property name="hibernate.hbm2ddl.auto" value="update"/>
+	  	
+        <property name="hibernate.hbm2ddl.auto" value="update"/>
+	  	
 	  	<property name="hibernate.dialect" value="org.hibernate.dialect.MySQL8Dialect"/>
   	</properties>
   </persistence-unit>

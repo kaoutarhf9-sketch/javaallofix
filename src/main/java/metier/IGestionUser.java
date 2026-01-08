@@ -9,7 +9,8 @@ public interface IGestionUser {
 	public User seConnecter(String cin, String mdp);
 
 	public void inscriptionProprietaire(Proprietaire p);
+	
+	void modifierUtilisateur(User u);
 
-	public void ajouterReparateur(Reparateur r, int idBoutique);
 
 }

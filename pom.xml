@@ -3,37 +3,42 @@
   <groupId>EMSI.4iir9</groupId>
   <artifactId>AlloFix-v2</artifactId>
   <version>0.0.1-SNAPSHOT</version>
+  
   <dependencies>
-  <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
-		<dependency>
-    		<groupId>org.projectlombok</groupId>
-   			 <artifactId>lombok</artifactId>
-   			 <version>1.18.42</version>
-		</dependency>
-		
-<!-- https://mvnrepository.com/artifact/mysql/mysql-connector-java -->
-		<dependency>
-    		<groupId>mysql</groupId>
-    		<artifactId>mysql-connector-java</artifactId>
-    		<version>8.0.28</version>
-		</dependency>
-		
-<!-- https://mvnrepository.com/artifact/org.hibernate.javax.persistence/hibernate-jpa-2.0-api -->
-		<dependency>
-    		<groupId>org.hibernate.javax.persistence</groupId>
-    		<artifactId>hibernate-jpa-2.0-api</artifactId>
-    		<version>1.0.1.Final</version>
-		</dependency>
-		
-<!-- https://mvnrepository.com/artifact/org.hibernate/hibernate-core -->
-		<dependency>
-    		<groupId>org.hibernate</groupId>
-   			 <artifactId>hibernate-core</artifactId>
-   			 <version>5.6.15.Final</version>
-		</dependency>
-		<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-validation</artifactId>
-    <version>2.7.18</version> </dependency>
-  </dependencies>
-</project>
+      <dependency>
+          <groupId>org.projectlombok</groupId>
+          <artifactId>lombok</artifactId>
+          <version>1.18.42</version>
+      </dependency>
+      
+      <dependency>
+          <groupId>mysql</groupId>
+          <artifactId>mysql-connector-java</artifactId>
+          <version>8.0.28</version>
+      </dependency>
+      
+      <dependency>
+          <groupId>org.hibernate.javax.persistence</groupId>
+          <artifactId>hibernate-jpa-2.0-api</artifactId>
+          <version>1.0.1.Final</version>
+      </dependency>
+      
+      <dependency>
+          <groupId>org.hibernate</groupId>
+          <artifactId>hibernate-core</artifactId>
+          <version>5.6.15.Final</version>
+      </dependency>
+      
+      <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-validation</artifactId>
+          <version>2.7.18</version> 
+      </dependency>
+
+      <dependency>
+          <groupId>com.sun.mail</groupId>
+          <artifactId>javax.mail</artifactId>
+          <version>1.6.2</version>
+      </dependency>
+      
+  </dependencies> </project>

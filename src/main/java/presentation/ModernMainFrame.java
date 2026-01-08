@@ -5,8 +5,10 @@ import java.awt.event.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
+import dao.Boutique;
 import dao.User;
-import dao.Proprietaire; // IMPERATIF : Importer la classe fille
+import dao.Proprietaire;
+import dao.Reparateur;
 import metier.GestionUser;
 import metier.IGestionUser;
 
@@ -15,10 +17,14 @@ public class ModernMainFrame extends JFrame {
     // --- GESTION DE L'AFFICHAGE ---
     private CardLayout cardLayout;
     private JPanel mainContentPanel;
+    private JPanel navbarPanel;
     
-    // --- REFERENCES VERS LES VUES (Pour pouvoir les rafraichir) ---
-    // C'est cette variable qui permet de relancer le chargement des données
+    // --- REFERENCES VERS LES VUES ---
     private ViewBoutique viewBoutique; 
+    private ViewFormReparateur viewFormReparateur;
+    private ViewDashboardProprio viewDashboardProprio; 
+    private ViewFormBoutique viewFormBoutique; 
+    private ViewListReparateur viewListReparateur; 
 
     // --- SERVICES METIERS ---
     private IGestionUser metierUser;
@@ -26,14 +32,20 @@ public class ModernMainFrame extends JFrame {
     // --- SESSION ---
     private User currentUser;
 
-    // --- CONSTANTES DE NAVIGATION (Evite les fautes de frappe) ---
+    // --- CONSTANTES DE NAVIGATION ---
     public static final String VUE_ACCUEIL = "ACCUEIL";
     public static final String VUE_LOGIN_PROPRIO = "LOGIN_PROPRIO";
     public static final String VUE_REGISTER_PROPRIO = "REGISTER_PROPRIO";
     public static final String VUE_LOGIN_REPARATEUR = "LOGIN_REPARATEUR";
+    
+    // Espace Propriétaire
     public static final String VUE_DASHBOARD_PROPRIO = "DASH_PROPRIO";
-    public static final String VUE_FORM_BOUTIQUE = "FORM_BOUTIQUE"; // Formulaire ajout
-    public static final String VUE_LISTE_BOUTIQUE = "LISTE_BOUTIQUE"; // Liste (Tableau)
+    public static final String VUE_FORM_BOUTIQUE = "FORM_BOUTIQUE";
+    public static final String VUE_LISTE_BOUTIQUE = "LISTE_BOUTIQUE";
+    public static final String VUE_FORM_REPARATEUR = "FORM_REPARATEUR";
+    public static final String VUE_LISTE_REPARATEUR = "LISTE_REPARATEUR";
+    
+    // Espace Réparateur
     public static final String VUE_DASHBOARD_REPARATEUR = "DASH_REPARATEUR";
 
     public ModernMainFrame() {
@@ -46,14 +58,15 @@ public class ModernMainFrame extends JFrame {
 
         // 2. Configuration Fenêtre
         setTitle("AlloFix | Console d'Administration");
-        setSize(1280, 850);
+        setSize(1280, 950);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         getContentPane().setBackground(Theme.BACKGROUND);
         setLayout(new BorderLayout());
 
-        // 3. Navbar
-        add(createNavbar(), BorderLayout.NORTH);
+        // 3. Navbar (Barre du haut)
+        navbarPanel = createNavbar();
+        add(navbarPanel, BorderLayout.NORTH);
 
         // 4. Contenu Central (CardLayout)
         cardLayout = new CardLayout();
@@ -63,65 +76,90 @@ public class ModernMainFrame extends JFrame {
         initViews();
 
         add(mainContentPanel, BorderLayout.CENTER);
+        
+        updateUIState(); 
     }
 
     private void initViews() {
         // --- INSTANCIATION DES VUES ---
-        
-        // On crée l'instance de ViewBoutique et on la stocke dans la variable de classe
         this.viewBoutique = new ViewBoutique(this);
+        this.viewFormReparateur = new ViewFormReparateur(this);
+        this.viewDashboardProprio = new ViewDashboardProprio(this);
+        this.viewFormBoutique = new ViewFormBoutique(this);
+        this.viewListReparateur = new ViewListReparateur(this);
 
         // --- AJOUT AU CARDLAYOUT ---
-        
-        // Pages Publiques
+        // Vues Publiques
         mainContentPanel.add(createWelcomePanel(), VUE_ACCUEIL);
         mainContentPanel.add(new ViewLogin(this, metierUser, "Propriétaire"), VUE_LOGIN_PROPRIO);
         mainContentPanel.add(new ViewLogin(this, metierUser, "Réparateur"), VUE_LOGIN_REPARATEUR);
         mainContentPanel.add(new ViewRegister(this, metierUser), VUE_REGISTER_PROPRIO);
 
-        // Pages Propriétaire
-        mainContentPanel.add(createDashboardProprio(), VUE_DASHBOARD_PROPRIO);
-        mainContentPanel.add(new ViewFormBoutique(this), VUE_FORM_BOUTIQUE);
-        
-        // ICI : On ajoute la vue liste avec la clé "LISTE_BOUTIQUE"
+        // Vues Propriétaire
+        mainContentPanel.add(this.viewDashboardProprio, VUE_DASHBOARD_PROPRIO);
+        mainContentPanel.add(this.viewFormBoutique, VUE_FORM_BOUTIQUE);
         mainContentPanel.add(this.viewBoutique, VUE_LISTE_BOUTIQUE);
-
-        // Pages Réparateur
+        mainContentPanel.add(this.viewListReparateur, VUE_LISTE_REPARATEUR);
+        mainContentPanel.add(this.viewFormReparateur, VUE_FORM_REPARATEUR);
+        
+        // Vues Réparateur
         mainContentPanel.add(createDashboardReparateur(), VUE_DASHBOARD_REPARATEUR);
     }
 
     // ========================================================================================
-    //                                  NAVIGATION & SESSION
+    //                                NAVIGATION & LOGIQUE
     // ========================================================================================
 
-    /**
-     * Méthode centrale pour changer de page
-     */
     public void changerVue(String nomVue) {
-        // 1. Afficher la vue demandée
         cardLayout.show(mainContentPanel, nomVue);
 
-        // 2. LOGIQUE DE RAFRAÎCHISSEMENT
-        // Si on demande à voir la liste des boutiques, on force le rechargement des données
-        if (nomVue.equals(VUE_LISTE_BOUTIQUE)) {
-            if (viewBoutique != null) {
-                System.out.println("Navigation vers LISTE_BOUTIQUE : Rafraîchissement des données...");
-                viewBoutique.refreshTable(); // <--- C'EST LA LIGNE QUI FAIT MARCHER VOTRE TABLEAU
-            }
+        // Rafraichissement automatique selon la vue
+        if (nomVue.equals(VUE_LISTE_BOUTIQUE) && viewBoutique != null) {
+            viewBoutique.refreshTable();
+        }
+        
+        if (nomVue.equals(VUE_FORM_REPARATEUR) && viewFormReparateur != null) {
+            viewFormReparateur.chargerLesBoutiques(); 
+            // Important : On remet le formulaire à zéro si on vient du bouton "Nouveau"
+            viewFormReparateur.resetFormulaire();
+        }
+
+        if (nomVue.equals(VUE_DASHBOARD_PROPRIO) && viewDashboardProprio != null) {
+            viewDashboardProprio.updateStats(); 
+        }
+        
+        if (nomVue.equals(VUE_LISTE_REPARATEUR) && viewListReparateur != null) {
+            viewListReparateur.refreshTable();
         }
     }
 
-    public void setCurrentUser(User u) {
-        this.currentUser = u;
+    // Méthode pour ouvrir le formulaire BOUTIQUE en mode édition
+    public void ouvrirModificationBoutique(Boutique b) {
+        changerVue(VUE_FORM_BOUTIQUE);
+        if (this.viewFormBoutique != null) {
+            this.viewFormBoutique.setBoutiqueEnEdition(b);
+        }
     }
 
-    public User getCurrentUser() {
-        return this.currentUser;
+    // Méthode pour ouvrir le formulaire REPARATEUR en mode édition
+    public void ouvrirModificationReparateur(Reparateur r) {
+        changerVue(VUE_FORM_REPARATEUR);
+        if (this.viewFormReparateur != null) {
+            // Assurez-vous d'avoir ajouté cette méthode setReparateurAModifier 
+            // dans ViewFormReparateur !
+            this.viewFormReparateur.setReparateurAModifier(r);
+        }
     }
 
-    /**
-     * Méthode utilitaire pour éviter les casts (User -> Proprietaire) partout dans le code
-     */
+    // --- GESTION SESSION ---
+    
+    public void setCurrentUser(User u) { 
+        this.currentUser = u; 
+        updateUIState();
+    }
+
+    public User getCurrentUser() { return this.currentUser; }
+    
     public Proprietaire getProprietaireConnecte() {
         if (currentUser != null && currentUser instanceof Proprietaire) {
             return (Proprietaire) currentUser;
@@ -129,40 +167,66 @@ public class ModernMainFrame extends JFrame {
         return null;
     }
 
+    private void updateUIState() {
+        remove(navbarPanel);
+        navbarPanel = createNavbar();
+        add(navbarPanel, BorderLayout.NORTH);
+        revalidate();
+        repaint();
+    }
+
     // ========================================================================================
-    //                                  COMPOSANTS UI
+    //                                COMPOSANTS UI (NAVBAR & HOME)
     // ========================================================================================
 
     private JPanel createNavbar() {
         JPanel nav = new JPanel(new BorderLayout());
         nav.setBackground(Color.WHITE);
-        nav.setPreferredSize(new Dimension(1000, 70));
-        nav.setBorder(BorderFactory.createMatteBorder(0,0,1,0, new Color(230,230,230)));
+        nav.setPreferredSize(new Dimension(1000, 80));
+        nav.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(226, 232, 240)),
+            new EmptyBorder(0, 40, 0, 40)
+        ));
 
         JLabel logo = new JLabel("⚡ AlloFix Console");
-        logo.setForeground(Theme.PRIMARY);
-        logo.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        logo.setBorder(new EmptyBorder(0, 30, 0, 0));
+        logo.setForeground(Theme.GRADIENT_START);
+        logo.setFont(new Font("Segoe UI", Font.BOLD, 24));
         logo.setCursor(new Cursor(Cursor.HAND_CURSOR));
         logo.addMouseListener(new MouseAdapter() {
-            public void mouseClicked(MouseEvent e) { changerVue(VUE_ACCUEIL); }
+            public void mouseClicked(MouseEvent e) { 
+                if(currentUser != null) {
+                    if(currentUser instanceof Proprietaire) changerVue(VUE_DASHBOARD_PROPRIO);
+                    else changerVue(VUE_DASHBOARD_REPARATEUR);
+                } else {
+                    changerVue(VUE_ACCUEIL); 
+                }
+            }
         });
-
-        JButton btnLogout = new JButton("Déconnexion");
-        btnLogout.setForeground(Color.RED);
-        btnLogout.setContentAreaFilled(false);
-        btnLogout.setBorderPainted(false);
-        btnLogout.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnLogout.addActionListener(e -> {
-            setCurrentUser(null); // On vide la session
-            changerVue(VUE_ACCUEIL);
-        });
-        
-        JPanel rightNav = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        rightNav.setOpaque(false);
-        rightNav.add(btnLogout);
 
         nav.add(logo, BorderLayout.WEST);
+
+        JPanel rightNav = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 20));
+        rightNav.setOpaque(false);
+
+        if (currentUser != null) {
+            JLabel lblUser = new JLabel("Bonjour, " + currentUser.getNom());
+            lblUser.setFont(Theme.FONT_REGULAR);
+            lblUser.setForeground(Theme.TEXT_BODY);
+            rightNav.add(lblUser);
+
+            JButton btnLogout = new JButton("Déconnexion");
+            btnLogout.setForeground(Theme.DANGER);
+            btnLogout.setFont(Theme.FONT_BOLD);
+            btnLogout.setContentAreaFilled(false);
+            btnLogout.setBorderPainted(false);
+            btnLogout.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            btnLogout.addActionListener(e -> {
+                setCurrentUser(null);
+                changerVue(VUE_ACCUEIL);
+            });
+            rightNav.add(btnLogout);
+        }
+
         nav.add(rightNav, BorderLayout.EAST);
         return nav;
     }
@@ -176,134 +240,96 @@ public class ModernMainFrame extends JFrame {
         content.setOpaque(false);
 
         JLabel title = new JLabel("Bienvenue sur AlloFix");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 32));
-        title.setForeground(Theme.TEXT_DARK);
+        title.setFont(Theme.FONT_HERO);
+        title.setForeground(Theme.TEXT_HEADLINE);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        JLabel subtitle = new JLabel("Choisissez votre espace de connexion");
+        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        subtitle.setForeground(Theme.TEXT_BODY);
+        subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JPanel cardsContainer = new JPanel(new FlowLayout(FlowLayout.CENTER, 40, 40));
         cardsContainer.setOpaque(false);
 
-        cardsContainer.add(createRoleCard("Espace Propriétaire", "Gérez vos boutiques et revenus.", "🏢", e -> changerVue(VUE_LOGIN_PROPRIO)));
-        cardsContainer.add(createRoleCard("Espace Réparateur", "Accédez aux tickets et planning.", "🛠️", e -> changerVue(VUE_LOGIN_REPARATEUR)));
+        cardsContainer.add(createRoleCard("Propriétaire", "Gérez vos boutiques et techniciens", "🏢", e -> changerVue(VUE_LOGIN_PROPRIO)));
+        cardsContainer.add(createRoleCard("Réparateur", "Traitez les demandes de réparation", "🛠️", e -> changerVue(VUE_LOGIN_REPARATEUR)));
 
         content.add(title);
-        content.add(Box.createVerticalStrut(20));
+        content.add(Box.createVerticalStrut(10));
+        content.add(subtitle);
+        content.add(Box.createVerticalStrut(30));
         content.add(cardsContainer);
         p.add(content);
         return p;
     }
 
     private JPanel createRoleCard(String title, String desc, String icon, ActionListener action) {
-        JPanel card = new JPanel() {
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(0,0,0,15));
-                g2.fillRoundRect(5, 5, getWidth()-10, getHeight()-10, 30, 30);
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(0, 0, getWidth()-5, getHeight()-5, 30, 30);
-                g2.dispose();
-            }
-        };
-        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setPreferredSize(new Dimension(300, 320));
-        card.setOpaque(false);
-        card.setBorder(new EmptyBorder(30, 30, 30, 30));
+        JPanel card = UIFactory.createCard();
+        card.setPreferredSize(new Dimension(320, 320));
 
         JLabel lblIcon = new JLabel(icon);
-        lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 50));
+        lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 64));
         lblIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel lblTitle = new JLabel(title);
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        JLabel lblTitle = UIFactory.createTitle(title);
         lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        JLabel lblDesc = new JLabel(desc);
+        lblDesc.setFont(Theme.FONT_REGULAR);
+        lblDesc.setForeground(Theme.TEXT_BODY);
+        lblDesc.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JButton btn = new JButton("Accéder");
-        btn.setBackground(Theme.PRIMARY);
-        btn.setForeground(Color.WHITE);
+        JButton btn = UIFactory.createGradientButton("Accéder");
         btn.setAlignmentX(Component.CENTER_ALIGNMENT);
         btn.addActionListener(action);
 
+        card.add(Box.createVerticalStrut(30));
         card.add(lblIcon);
-        card.add(Box.createVerticalStrut(15));
+        card.add(Box.createVerticalStrut(20));
         card.add(lblTitle);
+        card.add(Box.createVerticalStrut(10));
+        card.add(lblDesc);
         card.add(Box.createVerticalGlue());
         card.add(btn);
+        card.add(Box.createVerticalStrut(30));
         return card;
     }
 
-    // ========================================================================================
-    //                         DASHBOARD PROPRIO (MENU PRINCIPAL)
-    // ========================================================================================
-
-    private JPanel createDashboardProprio() {
-        JPanel p = new JPanel(new GridBagLayout());
-        p.setBackground(Theme.BACKGROUND);
-
-        JPanel centerContent = new JPanel();
-        centerContent.setLayout(new BoxLayout(centerContent, BoxLayout.Y_AXIS));
-        centerContent.setOpaque(false);
-
-        JLabel icon = new JLabel("🏪");
-        icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 80));
-        icon.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel title = new JLabel("Gestion des Boutiques");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        title.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        // Bouton 1 : Ajouter
-        JButton btnAdd = new JButton(" + Ajouter ma première Boutique ");
-        btnAdd.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        btnAdd.setBackground(Theme.PRIMARY);
-        btnAdd.setForeground(Color.WHITE);
-        btnAdd.setPreferredSize(new Dimension(350, 65));
-        btnAdd.setMaximumSize(new Dimension(350, 65));
-        btnAdd.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnAdd.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btnAdd.addActionListener(e -> changerVue(VUE_FORM_BOUTIQUE));
-
-        // Bouton 2 : Voir la liste (C'est celui qui posait problème)
-        JButton btnList = new JButton("Voir mes boutiques existantes");
-        btnList.setForeground(Theme.PRIMARY);
-        btnList.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        btnList.setContentAreaFilled(false);
-        btnList.setBorderPainted(false);
-        btnList.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnList.setAlignmentX(Component.CENTER_ALIGNMENT);
-        
-        // ACTION : Aller vers la liste (ce qui déclenche refreshTable)
-        btnList.addActionListener(e -> changerVue(VUE_LISTE_BOUTIQUE));
-
-        centerContent.add(icon);
-        centerContent.add(Box.createVerticalStrut(20));
-        centerContent.add(title);
-        centerContent.add(Box.createVerticalStrut(40));
-        centerContent.add(btnAdd);
-        centerContent.add(Box.createVerticalStrut(15));
-        centerContent.add(btnList);
-
-        p.add(centerContent);
-        return p;
-    }
-
     private JPanel createDashboardReparateur() {
-        return createSimplePage("Espace Technique", "Tickets assignés", Theme.PRIMARY);
+        return createSimplePage("Espace Technique", "Bienvenue dans l'interface de réparation", Theme.PRIMARY);
     }
 
     private JPanel createSimplePage(String title, String subtitle, Color color) {
-        JPanel p = new JPanel(new BorderLayout());
+        JPanel p = new JPanel(new GridBagLayout());
         p.setBackground(Theme.BACKGROUND);
-        JLabel lbl = new JLabel(title, SwingConstants.CENTER);
-        lbl.setFont(new Font("Segoe UI", Font.BOLD, 32));
+        
+        JPanel content = new JPanel();
+        content.setOpaque(false);
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        
+        JLabel lbl = new JLabel(title);
+        lbl.setFont(Theme.FONT_HERO);
         lbl.setForeground(color);
-        p.add(lbl, BorderLayout.CENTER);
+        lbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        JLabel sub = new JLabel(subtitle);
+        sub.setFont(Theme.FONT_REGULAR);
+        sub.setForeground(Theme.TEXT_BODY);
+        sub.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        content.add(lbl);
+        content.add(Box.createVerticalStrut(10));
+        content.add(sub);
+        p.add(content);
         return p;
     }
 
     public static void main(String[] args) {
+        // Amélioration du rendu des polices
         System.setProperty("awt.useSystemAAFontSettings", "on");
         System.setProperty("swing.aatext", "true");
+        
         SwingUtilities.invokeLater(() -> new ModernMainFrame().setVisible(true));
     }
 }

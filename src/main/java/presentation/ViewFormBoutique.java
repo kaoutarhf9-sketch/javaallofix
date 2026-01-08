@@ -13,6 +13,12 @@ public class ViewFormBoutique extends JPanel {
     private ModernMainFrame frame;
     private GestionBoutique metierBoutique;
 
+    // --- VARIABLES GLOBALES (Pour y accéder dans les méthodes) ---
+    private JTextField txtNom, txtAdresse, txtPatente, txtTel;
+    private JLabel lblTitle;
+    private JButton btnEnregistrer;
+    private Boutique boutiqueEnEdition = null; // Si null = Mode Création, sinon = Mode Modif
+
     private final Color COLOR_BORDER_DEFAULT = new Color(220, 220, 220);
     private final Color COLOR_BORDER_FOCUS = Theme.PRIMARY;
 
@@ -20,32 +26,25 @@ public class ViewFormBoutique extends JPanel {
         this.frame = frame;
         try { this.metierBoutique = new GestionBoutique(); } catch (Exception e) { e.printStackTrace(); }
 
-        // --- CORRECTION 1 : CENTRAGE PARFAIT ---
-        setLayout(new GridBagLayout()); // On utilise toujours GridBagLayout
+        // --- MISE EN PAGE CENTRÉE ---
+        setLayout(new GridBagLayout());
         setBackground(Theme.BACKGROUND);
         
-        // On crée des contraintes explicites pour forcer le centrage
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 1.0; // Prend tout l'espace horizontal
-        gbc.weighty = 1.0; // Prend tout l'espace vertical
-        gbc.fill = GridBagConstraints.NONE; // Ne pas étirer le composant
-        gbc.anchor = GridBagConstraints.CENTER; // Le placer au centre absolu
+        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.weightx = 1.0; gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.CENTER;
 
-        // --- CARTE CENTRALE ---
+        // --- CARTE ---
         JPanel card = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                // Ombre portée douce
-                g2.setColor(new Color(0, 0, 0, 15));
+                g2.setColor(new Color(0, 0, 0, 15)); // Ombre
                 g2.fillRoundRect(5, 8, getWidth() - 10, getHeight() - 10, 25, 25);
-                
-                // Fond Blanc
-                g2.setColor(Color.WHITE);
+                g2.setColor(Color.WHITE); // Fond
                 g2.fillRoundRect(0, 0, getWidth() - 5, getHeight() - 5, 25, 25);
                 g2.dispose();
             }
@@ -53,43 +52,36 @@ public class ViewFormBoutique extends JPanel {
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setPreferredSize(new Dimension(480, 650));
         card.setOpaque(false);
-        
-        // --- CORRECTION 2 : ICÔNE COUPÉE ---
-        // On augmente la marge du haut de 40 à 60 pour que l'emoji ait de la place
         card.setBorder(new EmptyBorder(60, 50, 40, 50));
 
-        // --- 1. EN-TÊTE ---
+        // --- COMPOSANTS ---
         JLabel icon = new JLabel("🏪");
         icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 48));
         icon.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel title = new JLabel("Nouvelle Boutique");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 26));
-        title.setForeground(Theme.TEXT_DARK);
-        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lblTitle = new JLabel("Nouvelle Boutique");
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 26));
+        lblTitle.setForeground(Theme.TEXT_BODY);
+        lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
         
         JLabel subtitle = new JLabel("Saisissez les détails de votre point de vente");
         subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        subtitle.setForeground(Theme.TEXT_GRAY);
+        subtitle.setForeground(Theme.TEXT_LIGHT);
         subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // --- 2. CHAMPS DE SAISIE ---
-        JTextField txtNom = createStyledField();
-        JTextField txtAdresse = createStyledField();
-        JTextField txtPatente = createStyledField();
-        JTextField txtTel = createStyledField();
+        // Initialisation des champs globaux
+        txtNom = createStyledField();
+        txtAdresse = createStyledField();
+        txtPatente = createStyledField();
+        txtTel = createStyledField();
 
-        // --- 3. BOUTONS ---
-        JButton btnEnregistrer = new JButton("ENREGISTRER") {
+        // --- BOUTON D'ACTION ---
+        btnEnregistrer = new JButton("ENREGISTRER") {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                if (getModel().isRollover()) {
-                    g2.setColor(Theme.PRIMARY_HOVER);
-                } else {
-                    g2.setColor(Theme.PRIMARY);
-                }
+                g2.setColor(getModel().isRollover() ? Theme.PRIMARY_HOVER : Theme.PRIMARY);
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 40, 40);
                 super.paintComponent(g);
                 g2.dispose();
@@ -106,45 +98,21 @@ public class ViewFormBoutique extends JPanel {
 
         JButton btnAnnuler = new JButton("Annuler et retour");
         btnAnnuler.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        btnAnnuler.setForeground(Theme.TEXT_GRAY);
+        btnAnnuler.setForeground(Theme.TEXT_LIGHT);
         btnAnnuler.setContentAreaFilled(false);
         btnAnnuler.setBorderPainted(false);
         btnAnnuler.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnAnnuler.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // --- 4. LOGIQUE MÉTIER ---
-        btnEnregistrer.addActionListener(e -> {
-            String nom = txtNom.getText().trim();
-            String adresse = txtAdresse.getText().trim();
-            String patente = txtPatente.getText().trim();
-            String tel = txtTel.getText().trim();
-
-            if (nom.isEmpty() || patente.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Le nom et la patente sont obligatoires.", "Champ manquant", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-
-            if (frame.getCurrentUser() instanceof Proprietaire) {
-                Proprietaire p = (Proprietaire) frame.getCurrentUser();
-                Boutique b = new Boutique();
-                b.setNomB(nom);
-                b.setAdresse(adresse);
-                b.setPatente(patente);
-                b.setNumtel(tel);
-
-                metierBoutique.creerBoutique(b, p.getIdU()); 
-                
-                JOptionPane.showMessageDialog(this, "La boutique '" + nom + "' a été créée !");
-                frame.changerVue(ModernMainFrame.VUE_LISTE_BOUTIQUE); 
-            }
-        });
+        // --- LOGIQUE DU BOUTON (CRÉATION OU MODIFICATION) ---
+        btnEnregistrer.addActionListener(e -> validerFormulaire());
 
         btnAnnuler.addActionListener(e -> frame.changerVue(ModernMainFrame.VUE_LISTE_BOUTIQUE));
 
-        // --- 5. ASSEMBLAGE ---
+        // --- ASSEMBLAGE ---
         card.add(icon);
         card.add(Box.createVerticalStrut(10));
-        card.add(title);
+        card.add(lblTitle);
         card.add(Box.createVerticalStrut(5));
         card.add(subtitle);
         card.add(Box.createVerticalStrut(30));
@@ -164,15 +132,87 @@ public class ViewFormBoutique extends JPanel {
         card.add(Box.createVerticalStrut(15));
         card.add(btnAnnuler);
 
-        // On ajoute la carte avec les contraintes de centrage
         add(card, gbc);
     }
 
-    // --- HELPER METHODS ---
+    // =========================================================================
+    // LA MÉTHODE MANQUANTE : setBoutiqueEnEdition
+    // =========================================================================
+    public void setBoutiqueEnEdition(Boutique b) {
+        this.boutiqueEnEdition = b; // On stocke l'objet
+        
+        if (b != null) {
+            // MODE MODIFICATION : On remplit les champs
+            txtNom.setText(b.getNomB());
+            txtAdresse.setText(b.getAdresse());
+            txtPatente.setText(b.getPatente());
+            txtTel.setText(b.getNumtel());
+            
+            lblTitle.setText("Modifier la Boutique");
+            btnEnregistrer.setText("ENREGISTRER LES MODIFICATIONS");
+        } else {
+            // MODE CRÉATION (ou Reset) : On vide tout
+            txtNom.setText("");
+            txtAdresse.setText("");
+            txtPatente.setText("");
+            txtTel.setText("");
+            
+            lblTitle.setText("Nouvelle Boutique");
+            btnEnregistrer.setText("ENREGISTRER");
+        }
+    }
+
+    private void validerFormulaire() {
+        String nom = txtNom.getText().trim();
+        String adresse = txtAdresse.getText().trim();
+        String patente = txtPatente.getText().trim();
+        String tel = txtTel.getText().trim();
+
+        if (nom.isEmpty() || patente.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Nom et Patente obligatoires.", "Erreur", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        if (boutiqueEnEdition == null) {
+            // === CAS 1 : CRÉATION ===
+            if (frame.getCurrentUser() instanceof Proprietaire) {
+                Proprietaire p = (Proprietaire) frame.getCurrentUser();
+                Boutique b = new Boutique();
+                b.setNomB(nom);
+                b.setAdresse(adresse);
+                b.setPatente(patente);
+                b.setNumtel(tel);
+
+                metierBoutique.creerBoutique(b, p.getIdU());
+                JOptionPane.showMessageDialog(this, "Boutique créée avec succès !");
+            }
+        } else {
+            // === CAS 2 : MODIFICATION ===
+            boutiqueEnEdition.setNomB(nom);
+            boutiqueEnEdition.setAdresse(adresse);
+            boutiqueEnEdition.setPatente(patente);
+            boutiqueEnEdition.setNumtel(tel);
+
+            // Assurez-vous d'avoir une méthode update/modifier dans votre couche métier
+            // Exemple : metierBoutique.modifierBoutique(boutiqueEnEdition); 
+            // Si vous n'en avez pas, il faudra l'ajouter dans GestionBoutique.
+            try {
+                // metierBoutique.update(boutiqueEnEdition); // Adaptez selon votre méthode métier
+                 JOptionPane.showMessageDialog(this, "Modification simulée (ajoutez le code métier) !");
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+
+        // Retour à la liste
+        frame.changerVue(ModernMainFrame.VUE_LISTE_BOUTIQUE);
+    }
+
+    // --- HELPER METHODS DE STYLE ---
     private JLabel createInputLabel(String text) {
         JLabel l = new JLabel(text);
         l.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        l.setForeground(Theme.TEXT_GRAY);
+        l.setForeground(Theme.TEXT_LIGHT);
         l.setAlignmentX(Component.LEFT_ALIGNMENT);
         l.setBorder(new EmptyBorder(0, 2, 5, 0));
         return l;
@@ -182,7 +222,7 @@ public class ViewFormBoutique extends JPanel {
         JTextField f = new JTextField();
         f.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         f.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        f.setForeground(Theme.TEXT_DARK);
+        f.setForeground(Theme.TEXT_BODY);
         CompoundBorder defaultBorder = new CompoundBorder(
                 new LineBorder(COLOR_BORDER_DEFAULT, 1, true),
                 new EmptyBorder(5, 10, 5, 10)
@@ -190,17 +230,13 @@ public class ViewFormBoutique extends JPanel {
         f.setBorder(defaultBorder);
         f.setAlignmentX(Component.LEFT_ALIGNMENT);
         f.addFocusListener(new FocusAdapter() {
-            @Override
             public void focusGained(FocusEvent e) {
                 f.setBorder(new CompoundBorder(
                     new LineBorder(COLOR_BORDER_FOCUS, 2, true),
                     new EmptyBorder(4, 9, 4, 9)
                 ));
             }
-            @Override
-            public void focusLost(FocusEvent e) {
-                f.setBorder(defaultBorder);
-            }
+            public void focusLost(FocusEvent e) { f.setBorder(defaultBorder); }
         });
         return f;
     }

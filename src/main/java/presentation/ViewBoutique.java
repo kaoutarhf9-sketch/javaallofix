@@ -6,259 +6,274 @@ import java.util.List;
 import javax.swing.*;
 import javax.swing.border.*;
 import javax.swing.table.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 import dao.Boutique;
-import dao.Proprietaire; 
 import metier.GestionBoutique;
 
 public class ViewBoutique extends JPanel {
 
     private ModernMainFrame frame;
     private GestionBoutique metier;
+    
+    // Composants
     private JTable table;
     private DefaultTableModel tableModel;
+    private TableRowSorter<DefaultTableModel> sorter;
+    private JTextField txtSearch;
 
     public ViewBoutique(ModernMainFrame frame) {
         this.frame = frame;
         
-        // --- 1. INIT MÉTIER ---
+        // 1. Métier
         try {
             this.metier = new GestionBoutique();
         } catch (Exception e) {
-            System.err.println("Erreur init métier : " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Erreur système : " + e.getMessage());
         }
-        
-        // --- 2. CONFIGURATION GLOBALE ---
-        setLayout(new BorderLayout(0, 30)); // Plus d'espace vertical
-        setBackground(Theme.BACKGROUND); // Gris très clair (ex: #F3F4F6)
-        setBorder(new EmptyBorder(40, 60, 40, 60)); // Marges généreuses
 
-        // --- 3. EN-TÊTE (Header) ---
-        JPanel header = new JPanel(new BorderLayout());
-        header.setOpaque(false);
+        // 2. Configuration Page
+        setLayout(new BorderLayout());
+        setBackground(Theme.BACKGROUND); // Gris clair (Slate 50)
+        setBorder(new EmptyBorder(30, 50, 30, 50));
+
+        // 3. Structure
+        add(createHeader(), BorderLayout.NORTH);
+        add(createTablePanel(), BorderLayout.CENTER);
         
-        // Titres
-        JPanel titlePanel = new JPanel(new GridLayout(2, 1, 0, 5));
-        titlePanel.setOpaque(false);
+        // 4. Chargement
+        refreshTable();
+    }
+
+    // =============================================================
+    // 1. EN-TÊTE : Titre à gauche, Recherche + Bouton à droite
+    // =============================================================
+    private JPanel createHeader() {
+        JPanel header = new JPanel(new BorderLayout(0, 20));
+        header.setOpaque(false);
+        header.setBorder(new EmptyBorder(0, 0, 25, 0));
+
+        // A. TITRES (Gauche)
+        JPanel titles = new JPanel(new GridLayout(2, 1));
+        titles.setOpaque(false);
         
         JLabel title = new JLabel("Mes Boutiques");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        title.setForeground(Theme.TEXT_DARK);
+        title.setFont(Theme.FONT_HERO); 
+        title.setForeground(Theme.TEXT_HEADLINE);
         
-        JLabel subtitle = new JLabel("Gérez vos points de vente et suivez leur activité.");
-        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        subtitle.setForeground(Theme.TEXT_GRAY);
+        JLabel subtitle = new JLabel("Gérez vos établissements et suivez leur activité.");
+        subtitle.setFont(Theme.FONT_REGULAR);
+        subtitle.setForeground(Theme.TEXT_BODY);
         
-        titlePanel.add(title);
-        titlePanel.add(subtitle);
+        titles.add(title);
+        titles.add(subtitle);
+
+        // B. ACTIONS (Droite : Recherche + Bouton)
+        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
+        actionsPanel.setOpaque(false);
+
+        // -- Barre de Recherche Design --
+        JPanel searchContainer = new JPanel(new BorderLayout());
+        searchContainer.setBackground(Color.WHITE);
+        searchContainer.setPreferredSize(new Dimension(250, 40));
+        searchContainer.setBorder(BorderFactory.createCompoundBorder(
+            new LineBorder(new Color(226, 232, 240), 1, true), // Bordure grise arrondie
+            new EmptyBorder(5, 10, 5, 10)
+        ));
         
-        // Bouton Ajouter (Style "Pill")
-        JButton btnAdd = new JButton("   + Nouvelle Boutique   ") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(getBackground());
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 30, 30); // Arrondi complet
-                super.paintComponent(g);
-                g2.dispose();
+        JLabel iconSearch = new JLabel("🔍 ");
+        iconSearch.setForeground(Color.GRAY);
+        
+        txtSearch = new JTextField();
+        txtSearch.setBorder(null); // Pas de bordure moche interne
+        txtSearch.setOpaque(false);
+        txtSearch.setFont(Theme.FONT_REGULAR);
+        
+        // Logique de filtre
+        txtSearch.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { filter(); }
+            public void removeUpdate(DocumentEvent e) { filter(); }
+            public void changedUpdate(DocumentEvent e) { filter(); }
+            void filter() {
+                String text = txtSearch.getText();
+                if (text.trim().length() == 0) sorter.setRowFilter(null);
+                else sorter.setRowFilter(RowFilter.regexFilter("(?i)" + text));
             }
-        };
-        btnAdd.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btnAdd.setBackground(Theme.PRIMARY);
-        btnAdd.setForeground(Color.WHITE);
-        btnAdd.setFocusPainted(false);
-        btnAdd.setBorderPainted(false);
-        btnAdd.setContentAreaFilled(false);
-        btnAdd.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        });
+
+        searchContainer.add(iconSearch, BorderLayout.WEST);
+        searchContainer.add(txtSearch, BorderLayout.CENTER);
+
+        // -- Bouton Nouveau --
+        JButton btnAdd = UIFactory.createGradientButton("+ Nouvelle Boutique");
         btnAdd.setPreferredSize(new Dimension(180, 40));
         btnAdd.addActionListener(e -> frame.changerVue(ModernMainFrame.VUE_FORM_BOUTIQUE));
 
-        header.add(titlePanel, BorderLayout.WEST);
-        header.add(btnAdd, BorderLayout.EAST);
-        add(header, BorderLayout.NORTH);
+        actionsPanel.add(searchContainer);
+        actionsPanel.add(btnAdd);
 
-        // --- 4. CARTE BLANCHE (Table Container) ---
-        JPanel cardPanel = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                // Ombre portée douce (Drop Shadow)
-                g2.setColor(new Color(0, 0, 0, 15));
-                g2.fillRoundRect(3, 5, getWidth()-6, getHeight()-6, 15, 15);
-                
-                // Fond Blanc
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(0, 0, getWidth()-3, getHeight()-3, 15, 15);
-                g2.dispose();
-            }
-        };
-        cardPanel.setOpaque(false);
-        cardPanel.setBorder(new EmptyBorder(10, 10, 10, 10)); // Marge interne à la carte
+        // Assemblage Header
+        header.add(titles, BorderLayout.WEST);
+        header.add(actionsPanel, BorderLayout.EAST); // Actions alignées à droite
+        
+        return header;
+    }
 
-        // --- 5. CONFIGURATION TABLEAU ---
+    // =============================================================
+    // 2. TABLEAU : Design "Clean" & "Flat"
+    // =============================================================
+    private JPanel createTablePanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(Color.WHITE);
+        // Bordure très subtile pour l'effet "Carte"
+        panel.setBorder(BorderFactory.createLineBorder(new Color(230, 232, 235), 1));
+
         String[] columns = {"ID", "ENSEIGNE", "ADRESSE", "PATENTE", "ACTIONS"};
+        
+        // Modèle non éditable
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
-            public boolean isCellEditable(int row, int column) { return false; }
-        };
-        
-        table = new JTable(tableModel);
-        styleTable(table); // Application du design "Web"
-
-        // ScrollPane propre (sans bordures laides)
-        JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder());
-        scrollPane.getViewport().setBackground(Color.WHITE);
-        scrollPane.setBackground(Color.WHITE);
-        
-        cardPanel.add(scrollPane, BorderLayout.CENTER);
-        add(cardPanel, BorderLayout.CENTER);
-
-        // --- 6. INTERACTION (Suppression) ---
-        initTableActions();
-    }
-
-    /**
-     * Logique de chargement des données (Version corrigée int)
-     */
-    public void refreshTable() {
-        if (metier == null) return; 
-
-        tableModel.setRowCount(0); 
-        
-        Proprietaire currentUser = frame.getProprietaireConnecte();
-
-        if (currentUser != null) {
-            // CORRECTION : getIdU() est int, la méthode lister attend int. Parfait.
-            int idProprio = currentUser.getIdU(); 
-            
-            List<Boutique> liste = metier.listerBoutiquesDuProprietaire(idProprio);
-            
-            if (liste != null) {
-                for (Boutique b : liste) {
-                    tableModel.addRow(new Object[]{
-                        "#" + b.getIdb(), 
-                        b.getNomB(), 
-                        b.getAdresse(), 
-                        b.getPatente(), 
-                        "SUPPRIMER" // Le rendu visuel est géré par le CellRenderer
-                    });
-                }
+            public boolean isCellEditable(int row, int col) {
+                return false; 
             }
-        }
-    }
+        };
 
-    /**
-     * Gestion du clic sur la colonne Actions
-     */
-    private void initTableActions() {
+        table = new JTable(tableModel);
+        sorter = new TableRowSorter<>(tableModel);
+        table.setRowSorter(sorter);
+
+        // --- STYLE PREMIUM ---
+        table.setRowHeight(60); 
+        table.setShowVerticalLines(false); // Pas de lignes verticales (Important pour le look)
+        table.setIntercellSpacing(new Dimension(0, 0));
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        table.setFocusable(false);
+        
+        // Header
+        JTableHeader header = table.getTableHeader();
+        header.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        header.setBackground(new Color(248, 250, 252)); // Gris très clair
+        header.setForeground(new Color(100, 116, 139)); // Gris texte
+        header.setPreferredSize(new Dimension(0, 50));
+        header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(226, 232, 240)));
+
+        // Sélection
+        table.setSelectionBackground(new Color(241, 245, 249)); // Bleu/Gris pâle
+        table.setSelectionForeground(Theme.TEXT_HEADLINE);
+
+        // Alignement Centré (ID et Patente)
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        table.getColumnModel().getColumn(0).setCellRenderer(centerRenderer);
+        table.getColumnModel().getColumn(3).setCellRenderer(centerRenderer);
+
+        // Padding (Marge interne) pour le texte (Enseigne et Adresse)
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                if (c instanceof JComponent) ((JComponent) c).setBorder(new EmptyBorder(0, 20, 0, 20));
+                if (!isSelected) c.setBackground(Color.WHITE);
+                return c;
+            }
+        });
+
+        // --- COLONNE ACTIONS ---
+        table.getColumnModel().getColumn(4).setCellRenderer(new ActionsRenderer());
+        table.getColumnModel().getColumn(4).setMinWidth(200);
+
+        // Logique de Clic (Simple pour le prof)
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 int row = table.rowAtPoint(e.getPoint());
                 int col = table.columnAtPoint(e.getPoint());
 
-                // Si clic sur la colonne ACTIONS (index 4)
                 if (row >= 0 && col == 4) {
-                    String idString = (String) tableModel.getValueAt(row, 0); // "#123"
-                    // Parsing propre en INT
-                    int idBoutique = Integer.parseInt(idString.replace("#", ""));
-
-                    int confirm = JOptionPane.showConfirmDialog(
-                        frame, 
-                        "Supprimer définitivement la boutique #" + idBoutique + " ?", 
-                        "Confirmation", 
-                        JOptionPane.YES_NO_OPTION
-                    );
-
-                    if (confirm == JOptionPane.YES_OPTION) {
-                        try {
-                            metier.supprimerBoutique(idBoutique); // Attend un int
-                            refreshTable();
-                            JOptionPane.showMessageDialog(frame, "Boutique supprimée.");
-                        } catch (Exception ex) {
-                            JOptionPane.showMessageDialog(frame, "Erreur : " + ex.getMessage());
-                        }
+                    int idBoutique = Integer.parseInt(table.getValueAt(row, 0).toString());
+                    
+                    // Calcul position clic (Gauche = Modifier, Droite = Supprimer)
+                    Rectangle rect = table.getCellRect(row, col, true);
+                    int x = e.getX() - rect.x;
+                    
+                    if (x < rect.width / 2) {
+                        modifierBoutique(idBoutique);
+                    } else {
+                        supprimerBoutique(idBoutique);
                     }
                 }
             }
         });
+
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getViewport().setBackground(Color.WHITE);
+        
+        panel.add(scroll, BorderLayout.CENTER);
+        return panel;
     }
 
-    /**
-     * Design avancé du tableau
-     */
-    private void styleTable(JTable table) {
-        // Dimensions
-        table.setRowHeight(60); // Lignes hautes "aérées"
-        table.setIntercellSpacing(new Dimension(0, 0));
-        table.setShowGrid(false); // Pas de grille verticale
-        table.setShowHorizontalLines(true); // Lignes horizontales seulement
-        table.setGridColor(new Color(240, 240, 240)); // Lignes très claires
-        
-        // Police
-        table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        table.setForeground(Theme.TEXT_DARK);
-        
-        // Sélection
-        table.setSelectionBackground(new Color(245, 247, 255)); // Bleu très pâle au clic
-        table.setSelectionForeground(Theme.TEXT_DARK);
-        
-        // --- HEADER PERSONNALISÉ ---
-        JTableHeader header = table.getTableHeader();
-        header.setPreferredSize(new Dimension(0, 50));
-        header.setDefaultRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                JLabel l = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                l.setBackground(Color.WHITE);
-                l.setForeground(Theme.TEXT_GRAY);
-                l.setFont(new Font("Segoe UI", Font.BOLD, 12));
-                l.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, new Color(240, 240, 240)));
-                l.setBorder(new EmptyBorder(0, 20, 0, 0)); // Padding gauche
-                return l;
-            }
-        });
+    // =============================================================
+    // 3. LOGIQUE MÉTIER
+    // =============================================================
+    public void refreshTable() {
+        if (metier == null || frame.getCurrentUser() == null) return;
 
-        // --- RENDU DES CELLULES DE DONNÉES ---
-        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                setBorder(new EmptyBorder(0, 20, 0, 0)); // Padding gauche pour le texte
-                return c;
-            }
-        };
+        tableModel.setRowCount(0);
+        List<Boutique> liste = metier.listerBoutiquesDuProprietaire(frame.getCurrentUser().getIdU());
         
-        // Appliquer le rendu standard aux 4 premières colonnes
-        for (int i = 0; i < 4; i++) {
-            table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+        if (liste != null) {
+            for (Boutique b : liste) {
+                tableModel.addRow(new Object[]{
+                    b.getIdb(), 
+                    b.getNomB(), 
+                    b.getAdresse(), 
+                    b.getPatente(), 
+                    "" // Vide (Géré par Renderer)
+                });
+            }
+        }
+    }
+
+    private void modifierBoutique(int id) {
+        Boutique b = metier.obtenirBoutique(id);
+        if (b != null) frame.ouvrirModificationBoutique(b);
+    }
+
+    private void supprimerBoutique(int id) {
+        int choix = JOptionPane.showConfirmDialog(this, "Supprimer cette boutique ?", "Confirmation", JOptionPane.YES_NO_OPTION);
+        if (choix == JOptionPane.YES_OPTION) {
+            metier.supprimerBoutique(id);
+            refreshTable();
+        }
+    }
+
+    // =============================================================
+    // 4. RENDERER ACTIONS (Juste pour le visuel)
+    // =============================================================
+    class ActionsRenderer extends JPanel implements TableCellRenderer {
+        public ActionsRenderer() {
+            setLayout(new FlowLayout(FlowLayout.CENTER, 8, 12));
+            setBackground(Color.WHITE);
+            add(createBadge("Modifier", new Color(238, 242, 255), Theme.PRIMARY));
+            add(createBadge("Supprimer", new Color(254, 242, 242), Color.RED));
         }
 
-        // --- RENDU SPÉCIAL COLONNE ACTIONS (Bouton Rouge) ---
-        table.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                JLabel l = new JLabel("🗑  " + value.toString());
-                l.setFont(new Font("Segoe UI", Font.BOLD, 12));
-                l.setForeground(new Color(220, 38, 38)); // Rouge moderne
-                l.setHorizontalAlignment(JLabel.CENTER);
-                l.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                
-                // Effet "Badge"
-                l.setBackground(new Color(254, 242, 242)); // Fond rouge très pâle
-                l.setOpaque(true);
-                l.setBorder(new EmptyBorder(5, 10, 5, 10)); // Padding interne
-                
-                // Conteneur pour centrer le "badge"
-                JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 15));
-                p.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
-                p.add(l);
-                return p;
-            }
-        });
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
+            return this;
+        }
+
+        private JLabel createBadge(String text, Color bg, Color fg) {
+            JLabel lbl = new JLabel(text, SwingConstants.CENTER);
+            lbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            lbl.setOpaque(true);
+            lbl.setBackground(bg);
+            lbl.setForeground(fg);
+            lbl.setBorder(BorderFactory.createEmptyBorder(5, 12, 5, 12)); // Effet "Pill"
+            return lbl;
+        }
     }
 }

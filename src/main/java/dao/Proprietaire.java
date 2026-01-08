@@ -15,6 +15,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
 @Data
@@ -32,6 +33,7 @@ public class Proprietaire extends User{
 	private LocalDate dateinscription;
 	
 	@OneToMany(mappedBy = "proprietaire", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+	@ToString.Exclude
 	private List<Boutique> boutiques;
 	
 

@@ -3,269 +3,273 @@ package presentation;
 import java.awt.*;
 import java.awt.event.*;
 import java.time.LocalDate;
+import java.util.concurrent.ExecutionException;
 import javax.swing.*;
-import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
 
 import dao.Proprietaire;
 import metier.IGestionUser;
 
 public class ViewRegister extends JPanel {
 
+    private ModernMainFrame frame;
+    private IGestionUser metier;
+
+    // Champs déclarés au niveau classe pour accès facile
+    private JTextField txtNom, txtPrenom, txtCin, txtTel, txtEmail;
+    private JPasswordField txtMdp;
+    private JToggleButton toggleReparateur;
+    private JButton btnValider;
+
     public ViewRegister(ModernMainFrame frame, IGestionUser metier) {
-        setLayout(new GridBagLayout()); // Centrage global
-        setBackground(Theme.BACKGROUND); // Fond gris bleuté
+        this.frame = frame;
+        this.metier = metier;
 
-        // --- Création de la Carte ---
-        JPanel card = createCard();
-        card.setLayout(new GridBagLayout()); // Grille pour aligner les champs
+        // 1. CONFIGURATION GÉNÉRALE
+        setLayout(new GridBagLayout());
+        setBackground(Theme.BACKGROUND);
 
+        // 2. LA CARTE CENTRALE (Flottante)
+        JPanel card = UIFactory.createCard();
+        card.setLayout(new GridBagLayout()); 
+        
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 15, 5, 15); // Marges standards
+        gbc.insets = new Insets(10, 20, 10, 20); 
         gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
 
-        // --- 1. Header (Bouton Retour) ---
+        // --- A. HEADER (Bouton Retour) ---
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         header.setOpaque(false);
         
-        JLabel lblBack = new JLabel("← Retour");
+        JLabel lblBack = new JLabel("← Retour à l'accueil");
         lblBack.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        lblBack.setForeground(Theme.TEXT_GRAY);
+        lblBack.setForeground(Theme.TEXT_BODY);
         lblBack.setCursor(new Cursor(Cursor.HAND_CURSOR));
         lblBack.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent e) { frame.changerVue(ModernMainFrame.VUE_ACCUEIL); }
-            public void mouseEntered(MouseEvent e) { lblBack.setForeground(Theme.PRIMARY); }
-            public void mouseExited(MouseEvent e) { lblBack.setForeground(Theme.TEXT_GRAY); }
+            public void mouseEntered(MouseEvent e) { lblBack.setForeground(Theme.GRADIENT_START); }
+            public void mouseExited(MouseEvent e) { lblBack.setForeground(Theme.TEXT_BODY); }
         });
         header.add(lblBack);
 
         gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
-        gbc.insets = new Insets(10, 15, 10, 15);
         card.add(header, gbc);
 
-        // --- 2. Titre & Sous-titre ---
-        JLabel title = new JLabel("Nouveau Compte");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 26));
-        title.setForeground(Theme.NAVY); // Bleu Marine
+        // --- B. TITRE & SOUS-TITRE ---
+        JPanel titlePanel = new JPanel(new GridLayout(2, 1, 0, 5));
+        titlePanel.setOpaque(false);
+        
+        JLabel title = new JLabel("Créer un compte");
+        title.setFont(Theme.FONT_TITLE);
+        title.setForeground(Theme.TEXT_HEADLINE);
         title.setHorizontalAlignment(SwingConstants.CENTER);
         
-        JLabel subtitle = new JLabel("Rejoignez la communauté AlloFix");
-        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        subtitle.setForeground(Theme.TEXT_GRAY);
+        JLabel subtitle = new JLabel("Rejoignez la communauté AlloFix en 2 minutes.");
+        subtitle.setFont(Theme.FONT_REGULAR);
+        subtitle.setForeground(Theme.TEXT_BODY);
         subtitle.setHorizontalAlignment(SwingConstants.CENTER);
+        
+        titlePanel.add(title);
+        titlePanel.add(subtitle);
 
         gbc.gridy = 1; 
-        gbc.anchor = GridBagConstraints.CENTER;
-        card.add(title, gbc);
+        gbc.insets = new Insets(10, 20, 30, 20); 
+        card.add(titlePanel, gbc);
 
-        gbc.gridy = 2; 
-        gbc.insets = new Insets(0, 15, 25, 15);
-        card.add(subtitle, gbc);
-
-        // --- 3. Champs de Saisie (Grille 2 colonnes) ---
+        // --- C. FORMULAIRE (Grille 2 Colonnes) ---
         gbc.gridwidth = 1; 
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.insets = new Insets(5, 15, 15, 15); // Espacement des champs
+        gbc.insets = new Insets(5, 10, 15, 10); 
 
-        // Ligne A : Nom & Prénom
-        JTextField txtNom = createStyledField();
-        JTextField txtPrenom = createStyledField();
-        gbc.gridy = 3; 
-        gbc.gridx = 0; card.add(createFieldGroup("Nom", txtNom), gbc);
-        gbc.gridx = 1; card.add(createFieldGroup("Prénom", txtPrenom), gbc);
+        // Ligne 1 : Nom / Prénom
+        txtNom = UIFactory.createModernField();
+        txtPrenom = UIFactory.createModernField();
+        
+        gbc.gridy = 2; gbc.gridx = 0; card.add(createFieldGroup("Nom", txtNom), gbc);
+        gbc.gridy = 2; gbc.gridx = 1; card.add(createFieldGroup("Prénom", txtPrenom), gbc);
 
-        // Ligne B : CIN & Téléphone
-        JTextField txtCin = createStyledField();
-        JTextField txtTel = createStyledField();
-        gbc.gridy = 4; 
-        gbc.gridx = 0; card.add(createFieldGroup("Identifiant (CIN)", txtCin), gbc);
-        gbc.gridx = 1; card.add(createFieldGroup("Téléphone", txtTel), gbc);
+        // Ligne 2 : CIN / Téléphone
+        txtCin = UIFactory.createModernField();
+        txtTel = UIFactory.createModernField();
+        
+        gbc.gridy = 3; gbc.gridx = 0; card.add(createFieldGroup("Identifiant (CIN)", txtCin), gbc);
+        gbc.gridy = 3; gbc.gridx = 1; card.add(createFieldGroup("Téléphone", txtTel), gbc);
 
-        // Ligne C : Email & Password
-        JTextField txtEmail = createStyledField();
-        JPasswordField txtMdp = createStyledPasswordField();
-        gbc.gridy = 5;
-        gbc.gridx = 0; card.add(createFieldGroup("Email", txtEmail), gbc);
-        gbc.gridx = 1; card.add(createFieldGroup("Mot de passe", txtMdp), gbc);
+        // Ligne 3 : Email / Mot de passe
+        txtEmail = UIFactory.createModernField();
+        txtMdp = createModernPasswordField(); 
+        
+        gbc.gridy = 4; gbc.gridx = 0; card.add(createFieldGroup("Email", txtEmail), gbc);
+        gbc.gridy = 4; gbc.gridx = 1; card.add(createFieldGroup("Mot de passe", txtMdp), gbc);
 
-        // --- 4. Switch "Devenir Réparateur" ---
+        // --- D. OPTION RÉPARATEUR (SWITCH) ---
+        gbc.gridy = 5; gbc.gridx = 0; gbc.gridwidth = 2;
+        gbc.insets = new Insets(20, 20, 20, 20);
+        
+        JPanel switchContainer = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
+        switchContainer.setOpaque(false);
+        switchContainer.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(241, 245, 249), 1, true),
+            new EmptyBorder(10, 10, 10, 10)
+        ));
+
+        toggleReparateur = createPremiumSwitch();
+        JLabel lblSwitchTitle = new JLabel("Compte Réparateur");
+        lblSwitchTitle.setFont(Theme.FONT_BOLD);
+        lblSwitchTitle.setForeground(Theme.TEXT_HEADLINE);
+        
+        JLabel lblSwitchDesc = new JLabel(" (Cochez si vous proposez des services)");
+        lblSwitchDesc.setFont(Theme.FONT_REGULAR);
+        lblSwitchDesc.setForeground(Theme.TEXT_BODY);
+
+        switchContainer.add(toggleReparateur);
+        switchContainer.add(lblSwitchTitle);
+        switchContainer.add(lblSwitchDesc);
+        
+        card.add(switchContainer, gbc);
+
+        // --- E. BOUTON D'ACTION ---
+        btnValider = UIFactory.createGradientButton("Confirmer l'inscription");
+        btnValider.addActionListener(e -> traiterInscription()); // Appel méthode propre
+
         gbc.gridy = 6; 
-        gbc.gridx = 0; gbc.gridwidth = 2;
-        gbc.insets = new Insets(15, 15, 15, 15);
-        
-        JPanel switchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
-        switchPanel.setOpaque(false);
-        
-        JToggleButton toggleReparateur = createModernSwitch();
-        JLabel lblSwitch = new JLabel("Je souhaite aussi proposer mes services de réparation");
-        lblSwitch.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        lblSwitch.setForeground(Theme.TEXT_DARK);
-        
-        switchPanel.add(toggleReparateur);
-        switchPanel.add(lblSwitch);
-        card.add(switchPanel, gbc);
-
-        // --- 5. Bouton Valider ---
-        JButton btnValider = createPrimaryButton("CRÉER MON COMPTE");
-        
-        gbc.gridy = 7;
-        gbc.insets = new Insets(10, 15, 10, 15);
-        gbc.fill = GridBagConstraints.NONE;
+        gbc.insets = new Insets(10, 20, 10, 20);
+        gbc.fill = GridBagConstraints.NONE; 
         gbc.anchor = GridBagConstraints.CENTER;
         card.add(btnValider, gbc);
 
-        // --- 6. Lien Login ---
-        JLabel lblLogin = new JLabel("<html>Déjà inscrit ? <font color='#4F46E5'>Se connecter</font></html>");
-        lblLogin.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        // --- F. LIEN LOGIN ---
+        JPanel loginLinkPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        loginLinkPanel.setOpaque(false);
+        
+        JLabel lblDeja = new JLabel("Déjà un compte ? ");
+        lblDeja.setFont(Theme.FONT_REGULAR);
+        lblDeja.setForeground(Theme.TEXT_BODY);
+        
+        JLabel lblLogin = new JLabel("Se connecter");
+        lblLogin.setFont(Theme.FONT_BOLD);
+        lblLogin.setForeground(Theme.GRADIENT_START);
         lblLogin.setCursor(new Cursor(Cursor.HAND_CURSOR));
         lblLogin.addMouseListener(new MouseAdapter() {
-            public void mouseClicked(MouseEvent e) {
-                frame.changerVue(ModernMainFrame.VUE_LOGIN_PROPRIO);
-            }
+            public void mouseClicked(MouseEvent e) { frame.changerVue(ModernMainFrame.VUE_LOGIN_PROPRIO); }
+            public void mouseEntered(MouseEvent e) { lblLogin.setText("<html><u>Se connecter</u></html>"); }
+            public void mouseExited(MouseEvent e) { lblLogin.setText("Se connecter"); }
         });
 
-        gbc.gridy = 8;
-        card.add(lblLogin, gbc);
+        loginLinkPanel.add(lblDeja);
+        loginLinkPanel.add(lblLogin);
 
-        // --- LOGIQUE MÉTIER ---
-        btnValider.addActionListener(e -> {
-            // Validation basique
-            if(txtNom.getText().isEmpty() || txtCin.getText().isEmpty() || new String(txtMdp.getPassword()).isEmpty()) {
-                 JOptionPane.showMessageDialog(this, "Veuillez remplir tous les champs obligatoires.", "Erreur", JOptionPane.WARNING_MESSAGE);
-                 return;
-            }
-
-            btnValider.setText("CRÉATION EN COURS...");
-            btnValider.setEnabled(false);
-
-            Timer t = new Timer(300, evt -> {
-                try {
-                    Proprietaire p = new Proprietaire();
-                    p.setNom(txtNom.getText());
-                    p.setPrenom(txtPrenom.getText());
-                    p.setCin(txtCin.getText());
-                    p.setNumtel(txtTel.getText());
-                    p.setEmail(txtEmail.getText());
-                    p.setMdp(new String(txtMdp.getPassword()));
-                    p.setEstReparateur(toggleReparateur.isSelected());
-                    p.setDateinscription(LocalDate.now());
-
-                    metier.inscriptionProprietaire(p);
-                    
-                    JOptionPane.showMessageDialog(this, "Compte créé avec succès !", "Bienvenue", JOptionPane.INFORMATION_MESSAGE);
-                    frame.changerVue(ModernMainFrame.VUE_LOGIN_PROPRIO);
-
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(this, "Erreur lors de l'inscription : " + ex.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
-                    btnValider.setText("CRÉER MON COMPTE");
-                    btnValider.setEnabled(true);
-                }
-            });
-            t.setRepeats(false);
-            t.start();
-        });
+        gbc.gridy = 7;
+        card.add(loginLinkPanel, gbc);
 
         add(card);
     }
 
     // =========================================================
-    //              COMPOSANTS GRAPHIQUES MODERNES
+    //                    LOGIQUE MÉTIER
     // =========================================================
 
-    private JPanel createCard() {
-        return new JPanel() {
+    private void traiterInscription() {
+        // 1. Validation basique
+        if(txtNom.getText().isEmpty() || txtCin.getText().isEmpty() || new String(txtMdp.getPassword()).isEmpty()) {
+             JOptionPane.showMessageDialog(this, "Veuillez remplir les champs obligatoires (Nom, CIN, Mot de passe).", "Attention", JOptionPane.WARNING_MESSAGE);
+             return;
+        }
+
+        // 2. UI Loading
+        btnValider.setText("Création en cours...");
+        btnValider.setEnabled(false);
+
+        // 3. Traitement en arrière-plan (SwingWorker)
+        new SwingWorker<Void, Void>() {
             @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                // Ombre
-                g2.setColor(new Color(0,0,0,20));
-                g2.fillRoundRect(5, 5, getWidth()-10, getHeight()-10, 30, 30);
-                // Fond
-                g2.setColor(Theme.SURFACE);
-                g2.fillRoundRect(0, 0, getWidth()-5, getHeight()-5, 30, 30);
-                g2.dispose();
+            protected Void doInBackground() throws Exception {
+                Proprietaire p = new Proprietaire();
+                p.setNom(txtNom.getText());
+                p.setPrenom(txtPrenom.getText());
+                p.setCin(txtCin.getText());
+                p.setNumtel(txtTel.getText());
+                p.setEmail(txtEmail.getText());
+                p.setMdp(new String(txtMdp.getPassword()));
+                p.setEstReparateur(toggleReparateur.isSelected());
+                p.setDateinscription(LocalDate.now());
+
+                // C'est ici que l'exception "Duplicate Entry" peut survenir
+                metier.inscriptionProprietaire(p); 
+                return null;
             }
-        };
+
+            @Override
+            protected void done() {
+                try {
+                    get(); // Vérifie s'il y a eu une erreur
+                    
+                    // Si on arrive ici, tout s'est bien passé
+                    JOptionPane.showMessageDialog(ViewRegister.this, "Bienvenue chez AlloFix !\nVotre compte a été créé.", "Succès", JOptionPane.INFORMATION_MESSAGE);
+                    frame.changerVue(ModernMainFrame.VUE_LOGIN_PROPRIO);
+
+                } catch (ExecutionException e) {
+                    // C'est ici qu'on récupère l'erreur de GestionUser (ex: "Ce CIN existe déjà")
+                    Throwable cause = e.getCause();
+                    JOptionPane.showMessageDialog(ViewRegister.this, cause.getMessage(), "Erreur d'inscription", JOptionPane.ERROR_MESSAGE);
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(ViewRegister.this, "Erreur technique : " + e.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
+                } finally {
+                    // On rétablit le bouton
+                    btnValider.setText("Confirmer l'inscription");
+                    btnValider.setEnabled(true);
+                }
+            }
+        }.execute();
     }
+
+    // =========================================================
+    //                  HELPER METHODS (DESIGN)
+    // =========================================================
 
     private JPanel createFieldGroup(String labelText, JComponent field) {
         JPanel p = new JPanel(new BorderLayout(0, 5));
         p.setOpaque(false);
+        
         JLabel l = new JLabel(labelText);
         l.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        l.setForeground(Theme.TEXT_GRAY);
+        l.setForeground(Theme.TEXT_BODY); 
+        
         p.add(l, BorderLayout.NORTH);
         p.add(field, BorderLayout.CENTER);
         return p;
     }
 
-    private JTextField createStyledField() {
-        JTextField field = new JTextField();
-        styleInput(field);
-        return field;
-    }
-
-    private JPasswordField createStyledPasswordField() {
+    private JPasswordField createModernPasswordField() {
         JPasswordField field = new JPasswordField();
-        styleInput(field);
-        return field;
-    }
-
-    private void styleInput(JTextField field) {
-        field.setPreferredSize(new Dimension(220, 40)); 
-        field.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        field.setForeground(Theme.TEXT_DARK);
-        field.setBackground(Color.WHITE);
-        field.setCaretColor(Theme.PRIMARY);
-        
-        field.setBorder(new CompoundBorder(
-            new LineBorder(new Color(209, 213, 219), 1, true),
-            new EmptyBorder(5, 10, 5, 10)
+        field.setFont(Theme.FONT_REGULAR);
+        field.setForeground(Theme.TEXT_HEADLINE);
+        field.setCaretColor(Theme.GRADIENT_START);
+        field.setBorder(BorderFactory.createCompoundBorder(
+            new javax.swing.border.LineBorder(new Color(226, 232, 240), 1, true),
+            new EmptyBorder(10, 15, 10, 15)
         ));
         
         field.addFocusListener(new FocusAdapter() {
             public void focusGained(FocusEvent e) {
-                field.setBorder(new CompoundBorder(new LineBorder(Theme.PRIMARY, 2, true), new EmptyBorder(4,9,4,9)));
+                field.setBorder(BorderFactory.createCompoundBorder(
+                    new javax.swing.border.LineBorder(Theme.GRADIENT_START, 2, true),
+                    new EmptyBorder(9, 14, 9, 14)
+                ));
             }
             public void focusLost(FocusEvent e) {
-                field.setBorder(new CompoundBorder(new LineBorder(new Color(209, 213, 219), 1, true), new EmptyBorder(5,10,5,10)));
+                field.setBorder(BorderFactory.createCompoundBorder(
+                    new javax.swing.border.LineBorder(new Color(226, 232, 240), 1, true),
+                    new EmptyBorder(10, 15, 10, 15)
+                ));
             }
         });
+        return field;
     }
 
-    private JButton createPrimaryButton(String text) {
-        JButton btn = new JButton(text) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                if (getModel().isPressed()) g2.setColor(Theme.PRIMARY_HOVER);
-                else if (getModel().isRollover()) g2.setColor(Theme.PRIMARY_HOVER);
-                else g2.setColor(Theme.PRIMARY);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
-                g2.setColor(Color.WHITE);
-                g2.setFont(getFont());
-                FontMetrics fm = g2.getFontMetrics();
-                int x = (getWidth() - fm.stringWidth(getText())) / 2;
-                int y = (getHeight() - fm.getHeight()) / 2 + fm.getAscent();
-                g2.drawString(getText(), x, y);
-                g2.dispose();
-            }
-        };
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        btn.setPreferredSize(new Dimension(250, 45));
-        btn.setFocusPainted(false);
-        btn.setBorderPainted(false);
-        btn.setContentAreaFilled(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        return btn;
-    }
-
-    private JToggleButton createModernSwitch() {
+    private JToggleButton createPremiumSwitch() {
         JToggleButton btn = new JToggleButton();
-        btn.setPreferredSize(new Dimension(50, 28));
+        btn.setPreferredSize(new Dimension(50, 30));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setContentAreaFilled(false);
         btn.setFocusPainted(false);
@@ -284,14 +288,15 @@ public class ViewRegister extends JPanel {
                 int h = c.getHeight();
                 
                 if (selected) g2.setColor(Theme.SUCCESS); 
-                else g2.setColor(new Color(209, 213, 219));
+                else g2.setColor(new Color(203, 213, 225));
                 
-                g2.fillRoundRect(0, 0, w, h, 28, 28);
+                g2.fillRoundRect(0, 0, w, h, 30, 30);
                 
                 g2.setColor(Color.WHITE);
-                int size = h - 4;
-                int x = selected ? (w - size - 2) : 2; 
-                g2.fillOval(x, 2, size, size);
+                int size = h - 6;
+                int x = selected ? (w - size - 3) : 3; 
+                g2.fillOval(x, 3, size, size);
+                
                 g2.dispose();
             }
         });

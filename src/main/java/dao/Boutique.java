@@ -17,6 +17,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Data
 @AllArgsConstructor
@@ -43,6 +44,7 @@ public class Boutique {
 	private Proprietaire proprietaire;
 	
 	@OneToMany
+	@ToString.Exclude
 	private List<Reparateur> reparateurs;
 
 }
