@@ -1,11 +1,9 @@
 package presentation;
 
 import dao.*;
-import metier.*;
-
 import javax.swing.*;
 import java.awt.*;
-import java.time.LocalDate; // ✅ Import indispensable pour la date
+import java.time.LocalDate;
 
 public class DeviceFormPanel extends JPanel {
 
@@ -20,13 +18,10 @@ public class DeviceFormPanel extends JPanel {
     private JTextField txtAvance;
     private JTextField txtReste;
 
-    // ✅ Référence vers l'historique pour le mettre à jour
-    private ViewListeReparation historiqueRef;
-
     public DeviceFormPanel() {
 
         setLayout(new GridBagLayout());
-        setBorder(BorderFactory.createTitledBorder("Réparation"));
+        setBorder(BorderFactory.createTitledBorder("Appareil à réparer"));
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
@@ -105,11 +100,8 @@ public class DeviceFormPanel extends JPanel {
         txtReste.setEditable(false);
         add(txtReste, gbc);
 
-        // ===== BOUTON =====
-        gbc.gridx = 1;
-        gbc.gridy++;
-        JButton btnSave = new JButton("Enregistrer");
-        add(btnSave, gbc);
+        // ❌ PLUS DE BOUTON SAVE ICI
+        // Le bouton sera unique dans le panel parent (ReparationPanel)
 
         // ===== LISTENERS =====
         cbType.addActionListener(e -> toggleAutreType());
@@ -126,16 +118,54 @@ public class DeviceFormPanel extends JPanel {
                 calculerReste();
             }
         });
-
-        btnSave.addActionListener(e -> saveReparation());
     }
 
-    // ✅ SETTER pour recevoir la vue Historique
-    public void setCallbackHistorique(ViewListeReparation vue) {
-        this.historiqueRef = vue;
+    // 🔥 MÉTHODE CLÉ : Elle fabrique la Réparation pour le compte du client fourni
+    public Reparation getReparationReadyToSave(Client clientUnique) {
+        
+        // 1. Validation locale
+        if (txtCause.getText().isEmpty() || txtPrixTotal.getText().isEmpty()) {
+            throw new RuntimeException("Champs manquants (Cause ou Prix) sur l'un des appareils.");
+        }
+
+        double prix;
+        double avance;
+
+        try {
+            prix = Double.parseDouble(txtPrixTotal.getText());
+            avance = txtAvance.getText().isEmpty() ? 0 : Double.parseDouble(txtAvance.getText());
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("Erreur de format numérique sur un appareil.");
+        }
+
+        // 2. Construction Device
+        String type = "Autre".equals(cbType.getSelectedItem()) 
+                      ? txtAutreType.getText() 
+                      : (String) cbType.getSelectedItem();
+                      
+        String marque = "Autre".equals(cbMarque.getSelectedItem()) 
+                        ? txtAutreMarque.getText() 
+                        : (String) cbMarque.getSelectedItem();
+
+        Device device = Device.builder()
+                .type(type)
+                .marque(marque)
+                .client(clientUnique) // ✅ On rattache cet appareil au client unique généré plus haut
+                .build();
+
+        // 3. Construction Reparation
+        return Reparation.builder()
+                .cause(txtCause.getText())
+                .prixTotal(prix)
+                .avance(avance)
+                .reste(prix - avance)
+                .dateDepot(LocalDate.now()) // ✅ Date du jour
+                .device(device)
+                .build();
     }
 
-    // ================== DYNAMIQUE ==================
+    // ================== LOGIQUE INTERNE ==================
+    
     private void toggleAutreType() {
         txtAutreType.setVisible(cbType.getSelectedItem().equals("Autre"));
         revalidate();
@@ -148,7 +178,6 @@ public class DeviceFormPanel extends JPanel {
         repaint();
     }
 
-    // ================== CALCUL RESTE ==================
     private void calculerReste() {
         try {
             double total = txtPrixTotal.getText().isEmpty()
@@ -165,92 +194,8 @@ public class DeviceFormPanel extends JPanel {
         }
     }
 
-    // ================== SAVE ==================
-    private void saveReparation() {
-
-        if (ClientPanel.txtNom.getText().isEmpty()
-                || ClientPanel.txtPrenom.getText().isEmpty()
-                || txtCause.getText().isEmpty()
-                || txtPrixTotal.getText().isEmpty()) {
-
-            JOptionPane.showMessageDialog(this,
-                    "Champs obligatoires manquants",
-                    "Erreur", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        double prixTotal;
-        double avance;
-
-        try {
-            prixTotal = Double.parseDouble(txtPrixTotal.getText());
-            avance = txtAvance.getText().isEmpty()
-                    ? 0
-                    : Double.parseDouble(txtAvance.getText());
-
-            if (avance > prixTotal) {
-                JOptionPane.showMessageDialog(this,
-                        "L'avance ne peut pas dépasser le prix total",
-                        "Erreur", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this,
-                    "Les montants doivent être numériques",
-                    "Erreur", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        String type = cbType.getSelectedItem().equals("Autre")
-                ? txtAutreType.getText()
-                : cbType.getSelectedItem().toString();
-
-        String marque = cbMarque.getSelectedItem().equals("Autre")
-                ? txtAutreMarque.getText()
-                : cbMarque.getSelectedItem().toString();
-
-        // 1. CLIENT
-        Client client = Client.builder()
-                .nom(ClientPanel.txtNom.getText())
-                .prenom(ClientPanel.txtPrenom.getText())
-                .telephone(ClientPanel.txtTel.getText())
-                .email(ClientPanel.txtEmail.getText())
-                .codeClient("CL-" + System.currentTimeMillis())
-                .build();
-
-        // 2. DEVICE
-        Device device = Device.builder()
-                .type(type)
-                .marque(marque)
-                .client(client)
-                .build();
-
-        // 3. REPARATION
-        Reparation r = Reparation.builder()
-                .cause(txtCause.getText())
-                .prixTotal(prixTotal)
-                .avance(avance)
-                .reste(prixTotal - avance)
-                .dateDepot(LocalDate.now()) // ✅ DATE DU JOUR AJOUTÉE
-                .device(device)
-                .build();
-
-        new GestionReparation().save(r);
-
-        JOptionPane.showMessageDialog(this,
-                "Réparation enregistrée\nReste à payer : " + (prixTotal - avance) + " DH");
-
-        // ✅ RAFRAÎCHISSEMENT AUTOMATIQUE DE L'HISTORIQUE
-        if (historiqueRef != null) {
-            historiqueRef.refreshTable();
-        }
-
-        clearForm();
-        ClientPanel.clearClientForm();
-    }
-
-    private void clearForm() {
+    // Utilitaire pour vider le formulaire après sauvegarde
+    public void clearForm() {
         txtCause.setText("");
         txtPrixTotal.setText("");
         txtAvance.setText("");

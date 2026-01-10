@@ -4,6 +4,7 @@ import dao.Reparation;
 import metier.GestionReparation;
 
 import javax.swing.*;
+import javax.swing.border.MatteBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -11,7 +12,8 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
-import java.time.format.DateTimeFormatter; // ✅ Nouvel import pour LocalDate
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 
 public class ViewListeReparation extends JPanel {
@@ -21,30 +23,23 @@ public class ViewListeReparation extends JPanel {
     private GestionReparation gestionReparation;
     private TableRowSorter<DefaultTableModel> sorter;
     
-    // ✅ UTILISATION DE DATETIMEFORMATTER (Pour LocalDate)
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     public ViewListeReparation() {
-        // Init métier
         gestionReparation = new GestionReparation();
 
-        // Config Panel
         setLayout(new BorderLayout(10, 10));
         setBackground(Theme.BACKGROUND);
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // 1. BARRE DE RECHERCHE
         add(createSearchPanel(), BorderLayout.NORTH);
-
-        // 2. TABLEAU
         add(createTablePanel(), BorderLayout.CENTER);
 
-        // 3. CHARGEMENT INITIAL
         loadData();
     }
 
     // =========================================================================
-    // 1. COMPOSANTS UI
+    // 1. UI COMPONENTS
     // =========================================================================
 
     private JPanel createSearchPanel() {
@@ -90,9 +85,10 @@ public class ViewListeReparation extends JPanel {
         sorter = new TableRowSorter<>(model);
         table.setRowSorter(sorter);
 
-        // --- STYLING ---
+        // --- STYLING DESIGN ---
         table.setRowHeight(35);
         table.setShowVerticalLines(false);
+        table.setShowHorizontalLines(false); // On gère les lignes nous-mêmes
         table.setIntercellSpacing(new Dimension(0, 0));
         table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         table.setSelectionBackground(new Color(232, 240, 254));
@@ -103,19 +99,10 @@ public class ViewListeReparation extends JPanel {
         header.setBackground(new Color(248, 250, 252));
         header.setForeground(new Color(100, 116, 139));
         header.setPreferredSize(new Dimension(0, 45));
-        header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(200, 200, 200)));
+        header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, new Color(200, 200, 200)));
 
-        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (!isSelected) {
-                    c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(250, 250, 250));
-                }
-                this.setHorizontalAlignment(JLabel.CENTER);
-                return c;
-            }
-        });
+        // ✅ APPLICATION DU RENDERER INTELLIGENT
+        table.setDefaultRenderer(Object.class, new ClientGroupRenderer());
 
         JScrollPane scroll = new JScrollPane(table);
         scroll.setBorder(BorderFactory.createLineBorder(new Color(230, 230, 230)));
@@ -136,10 +123,13 @@ public class ViewListeReparation extends JPanel {
 
     private void loadData() {
         model.setRowCount(0);
-
         List<Reparation> liste = gestionReparation.findAll();
         
         if (liste != null) {
+            // ✅ TRI : On trie par ID Client (ou Date) pour que les groupes soient collés
+            // On trie d'abord par Date (descendant) puis par Client
+            liste.sort(Comparator.comparing(Reparation::getIdReparation).reversed());
+
             for (Reparation r : liste) {
                 String nomClient = "Inconnu";
                 String typeDevice = "-";
@@ -153,13 +143,7 @@ public class ViewListeReparation extends JPanel {
                     }
                 }
 
-                // ✅ CHANGEMENT ICI : Formatage LocalDate
-                String dateStr = "-";
-                if (r.getDateDepot() != null) {
-                    // La méthode .format() appartient maintenant à LocalDate
-                    dateStr = r.getDateDepot().format(dateFormatter);
-                }
-
+                String dateStr = (r.getDateDepot() != null) ? r.getDateDepot().format(dateFormatter) : "-";
                 Double prix = (r.getPrixTotal() != null) ? r.getPrixTotal() : 0.0;
                 Double avance = (r.getAvance() != null) ? r.getAvance() : 0.0;
                 Double reste = (r.getReste() != null) ? r.getReste() : 0.0;
@@ -167,11 +151,11 @@ public class ViewListeReparation extends JPanel {
 
                 model.addRow(new Object[]{
                     "#" + r.getIdReparation(),
-                    nomClient,
+                    nomClient, // Col 1 : Clé de regroupement
                     typeDevice,
                     marqueDevice,
                     cause,
-                    dateStr, // Affiche la date formatée
+                    dateStr,
                     formatMoney(prix),
                     formatMoney(avance),
                     formatMoney(reste)
@@ -190,6 +174,73 @@ public class ViewListeReparation extends JPanel {
             sorter.setRowFilter(null);
         } else {
             sorter.setRowFilter(RowFilter.regexFilter("(?i)" + text));
+        }
+    }
+
+    // =========================================================================
+    // 🔥 CLASSE INTERNE : LE RENDERER INTELLIGENT
+    // =========================================================================
+    // C'est cette classe qui gère l'affichage visuel des groupes
+    private class ClientGroupRenderer extends DefaultTableCellRenderer {
+        
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, 
+                                                       boolean isSelected, boolean hasFocus, 
+                                                       int row, int column) {
+            
+            Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            
+            // Centrage du texte
+            setHorizontalAlignment(JLabel.CENTER);
+
+            // Récupération des infos pour comparer avec la ligne précédente et suivante
+            String currentClient = (String) table.getValueAt(row, 1); // Col 1 = Nom Client
+            
+            String prevClient = "";
+            if (row > 0) {
+                prevClient = (String) table.getValueAt(row - 1, 1);
+            }
+
+            String nextClient = "";
+            if (row < table.getRowCount() - 1) {
+                nextClient = (String) table.getValueAt(row + 1, 1);
+            }
+
+            boolean isSameAsPrev = currentClient.equals(prevClient);
+            boolean isSameAsNext = currentClient.equals(nextClient);
+
+            // --- 1. GESTION DES COULEURS DE FOND ---
+            if (!isSelected) {
+                c.setBackground(Color.WHITE);
+                c.setForeground(Color.BLACK);
+            }
+
+            // --- 2. GESTION DU TEXTE "FANTÔME" (Fusion visuelle) ---
+            // Si c'est le même client que la ligne d'avant, on cache le nom et la date
+            // pour alléger l'affichage et montrer que ça appartient au bloc du dessus.
+            if (isSameAsPrev && !isSelected) {
+                if (column == 1 || column == 5) { // 1 = Client, 5 = Date
+                    setText(""); 
+                }
+            }
+
+            // --- 3. GESTION DES BORDURES (Séparateurs) ---
+            JComponent comp = (JComponent) c;
+            
+            if (!isSameAsNext) {
+                // Si le client suivant est différent => GROSSE LIGNE DE SÉPARATION
+                comp.setBorder(new MatteBorder(0, 0, 2, 0, new Color(200, 200, 200)));
+            } else {
+                // Si le client suivant est le même => Pas de bordure ou bordure très fine pointillée
+                comp.setBorder(new MatteBorder(0, 0, 0, 0, Color.WHITE));
+            }
+            
+            // Si c'est la toute dernière ligne du tableau
+            if (row == table.getRowCount() - 1) {
+                 comp.setBorder(new MatteBorder(0, 0, 1, 0, new Color(200, 200, 200)));
+            }
+
+            return c;
         }
     }
 }
