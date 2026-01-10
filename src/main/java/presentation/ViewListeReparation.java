@@ -69,8 +69,9 @@ public class ViewListeReparation extends JPanel {
     }
 
     private JScrollPane createTablePanel() {
+        // ✅ CHANGEMENT : "Code Client" en premier au lieu de "ID"
         String[] columns = {
-            "ID", "Client", "Appareil", "Marque", 
+            "Code Client", "Client", "Appareil", "Marque", 
             "Cause", "Date Dépôt", "Total", "Avance", "Reste"
         };
 
@@ -88,7 +89,7 @@ public class ViewListeReparation extends JPanel {
         // --- STYLING DESIGN ---
         table.setRowHeight(35);
         table.setShowVerticalLines(false);
-        table.setShowHorizontalLines(false); // On gère les lignes nous-mêmes
+        table.setShowHorizontalLines(false);
         table.setIntercellSpacing(new Dimension(0, 0));
         table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         table.setSelectionBackground(new Color(232, 240, 254));
@@ -101,7 +102,7 @@ public class ViewListeReparation extends JPanel {
         header.setPreferredSize(new Dimension(0, 45));
         header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, new Color(200, 200, 200)));
 
-        // ✅ APPLICATION DU RENDERER INTELLIGENT
+        // Application du rendu intelligent (Groupement visuel)
         table.setDefaultRenderer(Object.class, new ClientGroupRenderer());
 
         JScrollPane scroll = new JScrollPane(table);
@@ -126,20 +127,23 @@ public class ViewListeReparation extends JPanel {
         List<Reparation> liste = gestionReparation.findAll();
         
         if (liste != null) {
-            // ✅ TRI : On trie par ID Client (ou Date) pour que les groupes soient collés
-            // On trie d'abord par Date (descendant) puis par Client
+            // Tri par date décroissante pour regrouper les ajouts récents
             liste.sort(Comparator.comparing(Reparation::getIdReparation).reversed());
 
             for (Reparation r : liste) {
                 String nomClient = "Inconnu";
+                String codeClient = "-"; // ✅ Variable pour le Code Client
                 String typeDevice = "-";
                 String marqueDevice = "-";
 
                 if (r.getDevice() != null) {
                     typeDevice = r.getDevice().getType();
                     marqueDevice = r.getDevice().getMarque();
+                    
                     if (r.getDevice().getClient() != null) {
+                        // ✅ Récupération du Nom ET du Code Client
                         nomClient = r.getDevice().getClient().getNom() + " " + r.getDevice().getClient().getPrenom();
+                        codeClient = r.getDevice().getClient().getCodeClient();
                     }
                 }
 
@@ -150,8 +154,8 @@ public class ViewListeReparation extends JPanel {
                 String cause = (r.getCause() != null) ? r.getCause() : "-";
 
                 model.addRow(new Object[]{
-                    "#" + r.getIdReparation(),
-                    nomClient, // Col 1 : Clé de regroupement
+                    codeClient,  // ✅ Col 0 : Affiche le Code Client (ex: CL-1789...)
+                    nomClient,   
                     typeDevice,
                     marqueDevice,
                     cause,
@@ -178,9 +182,8 @@ public class ViewListeReparation extends JPanel {
     }
 
     // =========================================================================
-    // 🔥 CLASSE INTERNE : LE RENDERER INTELLIGENT
+    // 🔥 RENDERER : Gère l'affichage groupé (Fusion visuelle)
     // =========================================================================
-    // C'est cette classe qui gère l'affichage visuel des groupes
     private class ClientGroupRenderer extends DefaultTableCellRenderer {
         
         @Override
@@ -190,52 +193,50 @@ public class ViewListeReparation extends JPanel {
             
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             
-            // Centrage du texte
             setHorizontalAlignment(JLabel.CENTER);
 
-            // Récupération des infos pour comparer avec la ligne précédente et suivante
-            String currentClient = (String) table.getValueAt(row, 1); // Col 1 = Nom Client
+            // On compare avec la valeur de la colonne "Code Client" (index 0)
+            String currentCode = (String) table.getValueAt(row, 0); 
             
-            String prevClient = "";
+            String prevCode = "";
             if (row > 0) {
-                prevClient = (String) table.getValueAt(row - 1, 1);
+                prevCode = (String) table.getValueAt(row - 1, 0);
             }
 
-            String nextClient = "";
+            String nextCode = "";
             if (row < table.getRowCount() - 1) {
-                nextClient = (String) table.getValueAt(row + 1, 1);
+                nextCode = (String) table.getValueAt(row + 1, 0);
             }
 
-            boolean isSameAsPrev = currentClient.equals(prevClient);
-            boolean isSameAsNext = currentClient.equals(nextClient);
+            boolean isSameAsPrev = currentCode.equals(prevCode);
+            boolean isSameAsNext = currentCode.equals(nextCode);
 
-            // --- 1. GESTION DES COULEURS DE FOND ---
+            // 1. Couleurs
             if (!isSelected) {
                 c.setBackground(Color.WHITE);
                 c.setForeground(Color.BLACK);
             }
 
-            // --- 2. GESTION DU TEXTE "FANTÔME" (Fusion visuelle) ---
-            // Si c'est le même client que la ligne d'avant, on cache le nom et la date
-            // pour alléger l'affichage et montrer que ça appartient au bloc du dessus.
+            // 2. Fusion visuelle : On cache le Code Client, le Nom et la Date si identique au précédent
             if (isSameAsPrev && !isSelected) {
-                if (column == 1 || column == 5) { // 1 = Client, 5 = Date
+                if (column == 0 || column == 1 || column == 5) { // 0=Code, 1=Nom, 5=Date
                     setText(""); 
+                    // Optionnel : afficher une petite icône ou " " pour dire "idem"
                 }
             }
 
-            // --- 3. GESTION DES BORDURES (Séparateurs) ---
+            // 3. Bordures (Séparation des groupes)
             JComponent comp = (JComponent) c;
             
             if (!isSameAsNext) {
-                // Si le client suivant est différent => GROSSE LIGNE DE SÉPARATION
+                // Fin du groupe client : Grosse ligne grise
                 comp.setBorder(new MatteBorder(0, 0, 2, 0, new Color(200, 200, 200)));
             } else {
-                // Si le client suivant est le même => Pas de bordure ou bordure très fine pointillée
+                // Milieu du groupe client : Pas de bordure
                 comp.setBorder(new MatteBorder(0, 0, 0, 0, Color.WHITE));
             }
             
-            // Si c'est la toute dernière ligne du tableau
+            // Bordure finale du tableau
             if (row == table.getRowCount() - 1) {
                  comp.setBorder(new MatteBorder(0, 0, 1, 0, new Color(200, 200, 200)));
             }
