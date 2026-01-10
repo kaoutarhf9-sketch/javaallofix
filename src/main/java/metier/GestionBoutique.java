@@ -8,14 +8,14 @@ import javax.persistence.TypedQuery;
 
 import dao.Boutique;
 import dao.Proprietaire;
+import utils.JpaUtil;
 
 public class GestionBoutique implements IGestionBoutique {
 	
 	private EntityManager em;
 	
 	public GestionBoutique() {
-		EntityManagerFactory emf = Persistence.createEntityManagerFactory("AlloFix");
-		em = emf.createEntityManager();
+		this.em = JpaUtil.getEntityManager();
 	}
 
     

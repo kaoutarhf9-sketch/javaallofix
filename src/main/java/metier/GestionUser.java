@@ -9,14 +9,14 @@ import javax.persistence.RollbackException;
 
 import dao.Proprietaire;
 import dao.User;
+import utils.JpaUtil;
 
 public class GestionUser implements IGestionUser {
     
     private EntityManager em;
     
     public GestionUser() {
-        EntityManagerFactory emf = Persistence.createEntityManagerFactory("AlloFix");
-        em = emf.createEntityManager();
+    	this.em = JpaUtil.getEntityManager();
     }
 
     @Override

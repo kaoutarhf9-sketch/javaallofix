@@ -1,9 +1,10 @@
 package presentation;
 
 import java.awt.*;
-import java.awt.event.*;
+import java.util.List;
 import javax.swing.*;
 import javax.swing.border.*;
+
 import dao.Boutique;
 import dao.Proprietaire;
 import metier.GestionBoutique;
@@ -13,136 +14,137 @@ public class ViewFormBoutique extends JPanel {
     private ModernMainFrame frame;
     private GestionBoutique metierBoutique;
 
-    // --- VARIABLES GLOBALES (Pour y accéder dans les méthodes) ---
+    // --- VARIABLES GLOBALES ---
     private JTextField txtNom, txtAdresse, txtPatente, txtTel;
     private JLabel lblTitle;
     private JButton btnEnregistrer;
-    private Boutique boutiqueEnEdition = null; // Si null = Mode Création, sinon = Mode Modif
+    private Boutique boutiqueEnEdition = null; 
 
+    // --- STYLES ---
     private final Color COLOR_BORDER_DEFAULT = new Color(220, 220, 220);
-    private final Color COLOR_BORDER_FOCUS = Theme.PRIMARY;
 
     public ViewFormBoutique(ModernMainFrame frame) {
         this.frame = frame;
         try { this.metierBoutique = new GestionBoutique(); } catch (Exception e) { e.printStackTrace(); }
 
-        // --- MISE EN PAGE CENTRÉE ---
+        initUI();
+    }
+
+    private void initUI() {
         setLayout(new GridBagLayout());
         setBackground(Theme.BACKGROUND);
+
+        // --- CARTE HORIZONTALE (Format Paysage) ---
+        JPanel card = new JPanel(new GridBagLayout());
+        card.setPreferredSize(new Dimension(800, 450)); // Carte large
+        card.setBackground(Color.WHITE);
         
+        // Bordure propre
+        card.setBorder(BorderFactory.createCompoundBorder(
+            new LineBorder(new Color(230, 230, 230), 1, true),
+            new EmptyBorder(30, 40, 30, 40)
+        ));
+
+        // --- 1. EN-TÊTE ---
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0; gbc.gridy = 0;
-        gbc.weightx = 1.0; gbc.weighty = 1.0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.gridwidth = 2; // Prend toute la largeur
+        gbc.insets = new Insets(0, 0, 30, 0); // Marge sous le titre
 
-        // --- CARTE ---
-        JPanel card = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(0, 0, 0, 15)); // Ombre
-                g2.fillRoundRect(5, 8, getWidth() - 10, getHeight() - 10, 25, 25);
-                g2.setColor(Color.WHITE); // Fond
-                g2.fillRoundRect(0, 0, getWidth() - 5, getHeight() - 5, 25, 25);
-                g2.dispose();
-            }
-        };
-        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setPreferredSize(new Dimension(480, 650));
-        card.setOpaque(false);
-        card.setBorder(new EmptyBorder(60, 50, 40, 50));
-
-        // --- COMPOSANTS ---
-        JLabel icon = new JLabel("🏪");
-        icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 48));
-        icon.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        lblTitle = new JLabel("Nouvelle Boutique");
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 26));
-        lblTitle.setForeground(Theme.TEXT_BODY);
-        lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
+        headerPanel.setOpaque(false);
         
-        JLabel subtitle = new JLabel("Saisissez les détails de votre point de vente");
-        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        subtitle.setForeground(Theme.TEXT_LIGHT);
-        subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel icon = new JLabel("🏪");
+        icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 42));
+        
+        lblTitle = UIFactory.createTitle("Nouvelle Boutique");
+        
+        headerPanel.add(icon);
+        headerPanel.add(lblTitle);
+        
+        card.add(headerPanel, gbc);
 
-        // Initialisation des champs globaux
+        // --- 2. FORMULAIRE (GRILLE 2 COLONNES) ---
+        // Init des champs
         txtNom = createStyledField();
         txtAdresse = createStyledField();
         txtPatente = createStyledField();
         txtTel = createStyledField();
 
-        // --- BOUTON D'ACTION ---
-        btnEnregistrer = new JButton("ENREGISTRER") {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(getModel().isRollover() ? Theme.PRIMARY_HOVER : Theme.PRIMARY);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 40, 40);
-                super.paintComponent(g);
-                g2.dispose();
-            }
-        };
-        btnEnregistrer.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        btnEnregistrer.setForeground(Color.WHITE);
-        btnEnregistrer.setContentAreaFilled(false);
-        btnEnregistrer.setBorderPainted(false);
-        btnEnregistrer.setFocusPainted(false);
-        btnEnregistrer.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnEnregistrer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 45));
-        btnEnregistrer.setAlignmentX(Component.CENTER_ALIGNMENT);
+        // Config Grille
+        gbc.gridwidth = 1; // Retour à 1 colonne par champ
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 0.5;
+        gbc.insets = new Insets(0, 10, 20, 10); // Espacement aéré
 
-        JButton btnAnnuler = new JButton("Annuler et retour");
-        btnAnnuler.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        btnAnnuler.setForeground(Theme.TEXT_LIGHT);
-        btnAnnuler.setContentAreaFilled(false);
-        btnAnnuler.setBorderPainted(false);
-        btnAnnuler.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnAnnuler.setAlignmentX(Component.CENTER_ALIGNMENT);
+        // Ligne 1 : Enseigne & Adresse
+        gbc.gridy = 1;
+        gbc.gridx = 0; card.add(createFieldBlock("Nom de l'enseigne", txtNom), gbc);
+        gbc.gridx = 1; card.add(createFieldBlock("Adresse complète", txtAdresse), gbc);
 
-        // --- LOGIQUE DU BOUTON (CRÉATION OU MODIFICATION) ---
+        // Ligne 2 : Patente & Téléphone
+        gbc.gridy = 2;
+        gbc.gridx = 0; card.add(createFieldBlock("Référence Patente", txtPatente), gbc);
+        gbc.gridx = 1; card.add(createFieldBlock("Téléphone", txtTel), gbc);
+
+        // --- 3. BOUTONS ---
+        gbc.gridy = 3;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2; // Pleine largeur
+        gbc.insets = new Insets(30, 10, 0, 10); // Marge haut
+
+        JPanel btnPanel = new JPanel(new GridLayout(1, 2, 20, 0));
+        btnPanel.setOpaque(false);
+
+        btnEnregistrer = UIFactory.createGradientButton("ENREGISTRER");
+        btnEnregistrer.setPreferredSize(new Dimension(0, 45));
         btnEnregistrer.addActionListener(e -> validerFormulaire());
 
+        JButton btnAnnuler = UIFactory.createOutlineButton("Annuler");
         btnAnnuler.addActionListener(e -> frame.changerVue(ModernMainFrame.VUE_LISTE_BOUTIQUE));
 
-        // --- ASSEMBLAGE ---
-        card.add(icon);
-        card.add(Box.createVerticalStrut(10));
-        card.add(lblTitle);
-        card.add(Box.createVerticalStrut(5));
-        card.add(subtitle);
-        card.add(Box.createVerticalStrut(30));
-        card.add(createInputLabel("NOM DE L'ENSEIGNE"));
-        card.add(txtNom);
-        card.add(Box.createVerticalStrut(15));
-        card.add(createInputLabel("ADRESSE POSTALE"));
-        card.add(txtAdresse);
-        card.add(Box.createVerticalStrut(15));
-        card.add(createInputLabel("RÉFÉRENCE PATENTE"));
-        card.add(txtPatente);
-        card.add(Box.createVerticalStrut(15));
-        card.add(createInputLabel("TÉLÉPHONE"));
-        card.add(txtTel);
-        card.add(Box.createVerticalStrut(30));
-        card.add(btnEnregistrer);
-        card.add(Box.createVerticalStrut(15));
-        card.add(btnAnnuler);
+        btnPanel.add(btnAnnuler);
+        btnPanel.add(btnEnregistrer);
 
-        add(card, gbc);
+        card.add(btnPanel, gbc);
+
+        // Ajout final
+        add(card);
+    }
+
+    // --- HELPER : BLOC CHAMP + LABEL (Identique à Reparateur) ---
+    private JPanel createFieldBlock(String labelText, JComponent field) {
+        JPanel p = new JPanel(new BorderLayout(0, 8));
+        p.setOpaque(false);
+        
+        JLabel l = new JLabel(labelText);
+        l.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        l.setForeground(new Color(100, 116, 139)); // Gris lisible
+        
+        p.add(l, BorderLayout.NORTH);
+        p.add(field, BorderLayout.CENTER);
+        return p;
+    }
+
+    // --- HELPER : STYLE CHAMP ---
+    private JTextField createStyledField() {
+        JTextField f = new JTextField();
+        f.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        f.setBorder(BorderFactory.createCompoundBorder(
+            new LineBorder(COLOR_BORDER_DEFAULT, 1, true),
+            new EmptyBorder(8, 10, 8, 10)
+        ));
+        return f;
     }
 
     // =========================================================================
-    // LA MÉTHODE MANQUANTE : setBoutiqueEnEdition
+    // LOGIQUE MÉTIER
     // =========================================================================
     public void setBoutiqueEnEdition(Boutique b) {
-        this.boutiqueEnEdition = b; // On stocke l'objet
+        this.boutiqueEnEdition = b;
         
         if (b != null) {
-            // MODE MODIFICATION : On remplit les champs
+            // MODE MODIF
             txtNom.setText(b.getNomB());
             txtAdresse.setText(b.getAdresse());
             txtPatente.setText(b.getPatente());
@@ -151,7 +153,7 @@ public class ViewFormBoutique extends JPanel {
             lblTitle.setText("Modifier la Boutique");
             btnEnregistrer.setText("ENREGISTRER LES MODIFICATIONS");
         } else {
-            // MODE CRÉATION (ou Reset) : On vide tout
+            // MODE CRÉATION
             txtNom.setText("");
             txtAdresse.setText("");
             txtPatente.setText("");
@@ -173,71 +175,34 @@ public class ViewFormBoutique extends JPanel {
             return;
         }
 
-        if (boutiqueEnEdition == null) {
-            // === CAS 1 : CRÉATION ===
-            if (frame.getCurrentUser() instanceof Proprietaire) {
-                Proprietaire p = (Proprietaire) frame.getCurrentUser();
-                Boutique b = new Boutique();
-                b.setNomB(nom);
-                b.setAdresse(adresse);
-                b.setPatente(patente);
-                b.setNumtel(tel);
+        try {
+            if (boutiqueEnEdition == null) {
+                // CRÉATION
+                if (frame.getCurrentUser() instanceof Proprietaire) {
+                    Proprietaire p = (Proprietaire) frame.getCurrentUser();
+                    Boutique b = new Boutique();
+                    b.setNomB(nom); b.setAdresse(adresse);
+                    b.setPatente(patente); b.setNumtel(tel);
 
-                metierBoutique.creerBoutique(b, p.getIdU());
-                JOptionPane.showMessageDialog(this, "Boutique créée avec succès !");
+                    metierBoutique.creerBoutique(b, p.getIdU());
+                    JOptionPane.showMessageDialog(this, "Boutique créée !");
+                }
+            } else {
+                // MODIFICATION
+                boutiqueEnEdition.setNomB(nom);
+                boutiqueEnEdition.setAdresse(adresse);
+                boutiqueEnEdition.setPatente(patente);
+                boutiqueEnEdition.setNumtel(tel);
+                
+                // Appel Métier Modification (Assurez-vous d'avoir ajouté modifierBoutique dans GestionBoutique)
+                metierBoutique.modifierBoutique(boutiqueEnEdition); 
+                JOptionPane.showMessageDialog(this, "Modifications enregistrées !");
             }
-        } else {
-            // === CAS 2 : MODIFICATION ===
-            boutiqueEnEdition.setNomB(nom);
-            boutiqueEnEdition.setAdresse(adresse);
-            boutiqueEnEdition.setPatente(patente);
-            boutiqueEnEdition.setNumtel(tel);
+            
+            frame.changerVue(ModernMainFrame.VUE_LISTE_BOUTIQUE);
 
-            // Assurez-vous d'avoir une méthode update/modifier dans votre couche métier
-            // Exemple : metierBoutique.modifierBoutique(boutiqueEnEdition); 
-            // Si vous n'en avez pas, il faudra l'ajouter dans GestionBoutique.
-            try {
-                // metierBoutique.update(boutiqueEnEdition); // Adaptez selon votre méthode métier
-                 JOptionPane.showMessageDialog(this, "Modification simulée (ajoutez le code métier) !");
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Erreur : " + ex.getMessage());
         }
-
-        // Retour à la liste
-        frame.changerVue(ModernMainFrame.VUE_LISTE_BOUTIQUE);
-    }
-
-    // --- HELPER METHODS DE STYLE ---
-    private JLabel createInputLabel(String text) {
-        JLabel l = new JLabel(text);
-        l.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        l.setForeground(Theme.TEXT_LIGHT);
-        l.setAlignmentX(Component.LEFT_ALIGNMENT);
-        l.setBorder(new EmptyBorder(0, 2, 5, 0));
-        return l;
-    }
-
-    private JTextField createStyledField() {
-        JTextField f = new JTextField();
-        f.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-        f.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        f.setForeground(Theme.TEXT_BODY);
-        CompoundBorder defaultBorder = new CompoundBorder(
-                new LineBorder(COLOR_BORDER_DEFAULT, 1, true),
-                new EmptyBorder(5, 10, 5, 10)
-        );
-        f.setBorder(defaultBorder);
-        f.setAlignmentX(Component.LEFT_ALIGNMENT);
-        f.addFocusListener(new FocusAdapter() {
-            public void focusGained(FocusEvent e) {
-                f.setBorder(new CompoundBorder(
-                    new LineBorder(COLOR_BORDER_FOCUS, 2, true),
-                    new EmptyBorder(4, 9, 4, 9)
-                ));
-            }
-            public void focusLost(FocusEvent e) { f.setBorder(defaultBorder); }
-        });
-        return f;
     }
 }

@@ -2,13 +2,12 @@ package metier;
 
 import java.util.List;
 import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.Persistence;
 import javax.persistence.Query;
 
 import dao.Boutique;
 import dao.Reparateur;
 import utils.EmailService;
+import utils.JpaUtil; 
 import utils.PasswordUtils;
 
 public class GestionReparateur implements IGestionReparateur {
@@ -16,8 +15,7 @@ public class GestionReparateur implements IGestionReparateur {
     private EntityManager em;
 
     public GestionReparateur() {
-        EntityManagerFactory emf = Persistence.createEntityManagerFactory("AlloFix");
-        em = emf.createEntityManager();
+        this.em = JpaUtil.getEntityManager();
     }
 
     @Override
@@ -40,21 +38,20 @@ public class GestionReparateur implements IGestionReparateur {
 
                 System.out.println("Réparateur créé ID: " + r.getIdU());
 
-                
                 final String emailDest = r.getEmail(); 
                 final String nom = r.getNom();
                 final String mdp = motDePasseGenere;
 
-                // 2. Thread sécurisé avec try-catch pour voir les erreurs
+                // Envoi Email dans un thread séparé
                 new Thread(() -> {
                     try {
                         if(emailDest != null && emailDest.contains("@")) {
                              EmailService.envoyerEmailReparateur(emailDest, nom, mdp);
                         } else {
-                            System.err.println("❌ L'adresse email est invalide ou vide : " + emailDest);
+                            System.err.println("L'adresse email est invalide ou vide : " + emailDest);
                         }
                     } catch (Exception e) {
-                        System.err.println("❌ ERREUR CRITIQUE ENVOI MAIL :");
+                        System.err.println("ERREUR CRITIQUE ENVOI MAIL :");
                         e.printStackTrace();
                     }
                 }).start();
@@ -86,7 +83,7 @@ public class GestionReparateur implements IGestionReparateur {
     public void modifierReparateur(Reparateur r) {
         try {
             em.getTransaction().begin();
-            em.merge(r); // "merge" sert à mettre à jour une entité existante
+            em.merge(r); 
             em.getTransaction().commit();
             System.out.println("Réparateur modifié ID: " + r.getIdU());
         } catch (Exception e) {
