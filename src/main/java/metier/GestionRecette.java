@@ -71,10 +71,28 @@ public class GestionRecette implements IGestionRecette {
         if (list != null) {
             for (Recette r : list) {
                 if (r.getTypeOperation() != null && r.getTypeOperation().equalsIgnoreCase(type)) {
-                    total += r.getMontant();
+                    // INITIALISATION : On ne compte que si ce n'est pas encore rendu
+                    if ("NON_RENDU".equals(r.getStatut())) {
+                        total += r.getMontant();
+                    }
                 }
             }
         }
         return total;
+    }
+    
+    @Override
+    public void marquerCommeRendu(int idRecette) {
+        try {
+            em.getTransaction().begin();
+            Recette r = em.find(Recette.class, idRecette);
+            if (r != null) {
+                r.setStatut("RENDU");
+            }
+            em.getTransaction().commit();
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) em.getTransaction().rollback();
+            e.printStackTrace();
+        }
     }
 }
