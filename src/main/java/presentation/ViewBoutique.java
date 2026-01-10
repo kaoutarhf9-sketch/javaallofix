@@ -35,7 +35,7 @@ public class ViewBoutique extends JPanel {
 
         // 2. Configuration Page
         setLayout(new BorderLayout());
-        setBackground(Theme.BACKGROUND); // Gris clair (Slate 50)
+        setBackground(Theme.BACKGROUND); 
         setBorder(new EmptyBorder(30, 50, 30, 50));
 
         // 3. Structure

@@ -3,7 +3,6 @@ package presentation;
 import java.awt.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.plaf.basic.BasicTabbedPaneUI;
 
 public class ViewDashboardReparateur extends JPanel {
     private ModernMainFrame frame;
@@ -20,7 +19,7 @@ public class ViewDashboardReparateur extends JPanel {
         this.viewRecette = new ViewRecette(frame);
         this.viewListeReparation = new ViewListeReparation(); 
         
-        // Création de la vue combinée "Nouvelle Réparation" (Client à gauche + Formulaire à droite)
+        // Création de la vue combinée "Nouvelle Réparation"
         this.panelNouvelleReparation = createNouvelleReparationPanel();
 
         setLayout(new BorderLayout());
@@ -59,7 +58,8 @@ public class ViewDashboardReparateur extends JPanel {
             if (selected == viewRecette) {
                 viewRecette.refresh();
             } else if (selected == viewListeReparation) {
-                // viewListeReparation.refresh(); // Assurez-vous d'avoir une méthode refresh() dans cette classe
+                // Double sécurité : on rafraîchit aussi quand on clique sur l'onglet
+                viewListeReparation.refreshTable();
             }
         });
 
@@ -67,23 +67,16 @@ public class ViewDashboardReparateur extends JPanel {
     }
 
     // --- CONSTRUCTION DU PANEL "NOUVELLE RÉPARATION" ---
-    // C'est ici qu'on combine ClientPanel (Gauche) et ReparationPanel (Centre)
     private JPanel createNouvelleReparationPanel() {
         JPanel container = new JPanel(new BorderLayout(15, 0));
         container.setOpaque(false);
         container.setBorder(new EmptyBorder(15, 0, 0, 0));
 
-        // On instancie vos panels existants
-        // Note: Idéalement, ReparationPanel devrait prendre une référence vers viewListeReparation
-        // pour pouvoir la rafraîchir après un ajout, sans passer par du static.
         ClientPanel clientPanel = new ClientPanel();
-        
-        // Nous allons passer viewListeReparation au constructeur de ReparationPanel (voir étape 2)
-        // Si vous ne voulez pas modifier ReparationPanel, utilisez le constructeur par défaut.
         ReparationPanel reparationPanel = new ReparationPanel(); 
         
-        // Petite astuce : on peut lier les deux panels ici si nécessaire
-        // Exemple : quand on sélectionne un client, reparationPanel se met à jour.
+        // 🔥 CONNEXION CRUCIALE : On lie les deux vues ici
+        reparationPanel.setHistoriqueVue(this.viewListeReparation);
         
         container.add(clientPanel, BorderLayout.WEST);
         container.add(reparationPanel, BorderLayout.CENTER);
@@ -93,6 +86,6 @@ public class ViewDashboardReparateur extends JPanel {
 
     public void refreshData() {
         viewRecette.refresh();
-        // viewListeReparation.refresh();
+        viewListeReparation.refreshTable();
     }
 }

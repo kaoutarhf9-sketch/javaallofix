@@ -22,7 +22,7 @@ public class GestionBoutique implements IGestionBoutique {
     @Override
     public List<Boutique> listerBoutiquesDuProprietaire(int idProprietaire) {
         try {
-            // Requête pour trouver les boutiques liées à l'ID du propriétaire
+           
             String jpql = "SELECT b FROM Boutique b WHERE b.proprietaire.idU = :idProp";
             
             TypedQuery<Boutique> query = em.createQuery(jpql, Boutique.class);

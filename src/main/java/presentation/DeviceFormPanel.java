@@ -5,6 +5,7 @@ import metier.*;
 
 import javax.swing.*;
 import java.awt.*;
+import java.time.LocalDate; // ✅ Import indispensable pour la date
 
 public class DeviceFormPanel extends JPanel {
 
@@ -18,6 +19,9 @@ public class DeviceFormPanel extends JPanel {
     private JTextField txtPrixTotal;
     private JTextField txtAvance;
     private JTextField txtReste;
+
+    // ✅ Référence vers l'historique pour le mettre à jour
+    private ViewListeReparation historiqueRef;
 
     public DeviceFormPanel() {
 
@@ -126,6 +130,11 @@ public class DeviceFormPanel extends JPanel {
         btnSave.addActionListener(e -> saveReparation());
     }
 
+    // ✅ SETTER pour recevoir la vue Historique
+    public void setCallbackHistorique(ViewListeReparation vue) {
+        this.historiqueRef = vue;
+    }
+
     // ================== DYNAMIQUE ==================
     private void toggleAutreType() {
         txtAutreType.setVisible(cbType.getSelectedItem().equals("Autre"));
@@ -201,7 +210,7 @@ public class DeviceFormPanel extends JPanel {
                 ? txtAutreMarque.getText()
                 : cbMarque.getSelectedItem().toString();
 
-        // 🔥 CLIENT (codeClient généré ICI)
+        // 1. CLIENT
         Client client = Client.builder()
                 .nom(ClientPanel.txtNom.getText())
                 .prenom(ClientPanel.txtPrenom.getText())
@@ -210,17 +219,20 @@ public class DeviceFormPanel extends JPanel {
                 .codeClient("CL-" + System.currentTimeMillis())
                 .build();
 
+        // 2. DEVICE
         Device device = Device.builder()
                 .type(type)
                 .marque(marque)
                 .client(client)
                 .build();
 
+        // 3. REPARATION
         Reparation r = Reparation.builder()
                 .cause(txtCause.getText())
                 .prixTotal(prixTotal)
                 .avance(avance)
                 .reste(prixTotal - avance)
+                .dateDepot(LocalDate.now()) // ✅ DATE DU JOUR AJOUTÉE
                 .device(device)
                 .build();
 
@@ -229,7 +241,13 @@ public class DeviceFormPanel extends JPanel {
         JOptionPane.showMessageDialog(this,
                 "Réparation enregistrée\nReste à payer : " + (prixTotal - avance) + " DH");
 
+        // ✅ RAFRAÎCHISSEMENT AUTOMATIQUE DE L'HISTORIQUE
+        if (historiqueRef != null) {
+            historiqueRef.refreshTable();
+        }
+
         clearForm();
+        ClientPanel.clearClientForm();
     }
 
     private void clearForm() {

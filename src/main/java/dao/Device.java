@@ -12,16 +12,16 @@ import lombok.*;
 public class Device {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private int idDevice;
 
     private String type;
     private String marque;
 
-    // 🔥 CORRECTION IMPORTANTE
+    
     @ManyToOne(cascade = CascadeType.PERSIST)
     private Client client;
 
-    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy ="device", cascade = CascadeType.ALL)
     private List<Reparation> reparations;
 }

@@ -1,6 +1,9 @@
 package dao;
 
-import java.io.Serializable;
+
+import java.time.LocalDate;
+import java.util.Date;
+
 import javax.persistence.*;
 import lombok.*;
 
@@ -9,18 +12,18 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Reparation implements Serializable {
+public class Reparation  {
 
-    private static final long serialVersionUID = 1L;
-
+    
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private int idReparation;
 
     private String cause;
     private Double prixTotal;
     private Double avance;
     private Double reste;
+    private LocalDate dateDepot;
 
     @ManyToOne
     private Device device;
