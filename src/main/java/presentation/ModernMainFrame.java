@@ -25,6 +25,7 @@ public class ModernMainFrame extends JFrame {
     private ViewDashboardProprio viewDashboardProprio; 
     private ViewFormBoutique viewFormBoutique; 
     private ViewListReparateur viewListReparateur; 
+    private ViewDashboardReparateur viewDashboardReparateur; // Nouvelle vue dédiée
 
     // --- SERVICES METIERS ---
     private IGestionUser metierUser;
@@ -64,11 +65,11 @@ public class ModernMainFrame extends JFrame {
         getContentPane().setBackground(Theme.BACKGROUND);
         setLayout(new BorderLayout());
 
-        // 3. Navbar (Barre du haut)
+        // 3. Navbar
         navbarPanel = createNavbar();
         add(navbarPanel, BorderLayout.NORTH);
 
-        // 4. Contenu Central (CardLayout)
+        // 4. Contenu Central
         cardLayout = new CardLayout();
         mainContentPanel = new JPanel(cardLayout);
         mainContentPanel.setBackground(Theme.BACKGROUND);
@@ -76,7 +77,6 @@ public class ModernMainFrame extends JFrame {
         initViews();
 
         add(mainContentPanel, BorderLayout.CENTER);
-        
         updateUIState(); 
     }
 
@@ -87,9 +87,9 @@ public class ModernMainFrame extends JFrame {
         this.viewDashboardProprio = new ViewDashboardProprio(this);
         this.viewFormBoutique = new ViewFormBoutique(this);
         this.viewListReparateur = new ViewListReparateur(this);
+        this.viewDashboardReparateur = new ViewDashboardReparateur(this); // Init de la classe dédiée
 
         // --- AJOUT AU CARDLAYOUT ---
-        // Vues Publiques
         mainContentPanel.add(createWelcomePanel(), VUE_ACCUEIL);
         mainContentPanel.add(new ViewLogin(this, metierUser, "Propriétaire"), VUE_LOGIN_PROPRIO);
         mainContentPanel.add(new ViewLogin(this, metierUser, "Réparateur"), VUE_LOGIN_REPARATEUR);
@@ -102,57 +102,43 @@ public class ModernMainFrame extends JFrame {
         mainContentPanel.add(this.viewListReparateur, VUE_LISTE_REPARATEUR);
         mainContentPanel.add(this.viewFormReparateur, VUE_FORM_REPARATEUR);
         
-        // Vues Réparateur
-        mainContentPanel.add(createDashboardReparateur(), VUE_DASHBOARD_REPARATEUR);
+        // Vue Réparateur (Classe dédiée)
+        mainContentPanel.add(this.viewDashboardReparateur, VUE_DASHBOARD_REPARATEUR);
     }
-
-    // ========================================================================================
-    //                                NAVIGATION & LOGIQUE
-    // ========================================================================================
 
     public void changerVue(String nomVue) {
         cardLayout.show(mainContentPanel, nomVue);
 
-        // Rafraichissement automatique selon la vue
-        if (nomVue.equals(VUE_LISTE_BOUTIQUE) && viewBoutique != null) {
-            viewBoutique.refreshTable();
-        }
+        // Rafraichissement intelligent
+        if (nomVue.equals(VUE_LISTE_BOUTIQUE) && viewBoutique != null) viewBoutique.refreshTable();
         
         if (nomVue.equals(VUE_FORM_REPARATEUR) && viewFormReparateur != null) {
             viewFormReparateur.chargerLesBoutiques(); 
-            // Important : On remet le formulaire à zéro si on vient du bouton "Nouveau"
             viewFormReparateur.resetFormulaire();
         }
 
-        if (nomVue.equals(VUE_DASHBOARD_PROPRIO) && viewDashboardProprio != null) {
-            viewDashboardProprio.updateStats(); 
-        }
+        if (nomVue.equals(VUE_DASHBOARD_PROPRIO) && viewDashboardProprio != null) viewDashboardProprio.updateStats(); 
         
-        if (nomVue.equals(VUE_LISTE_REPARATEUR) && viewListReparateur != null) {
-            viewListReparateur.refreshTable();
+        if (nomVue.equals(VUE_LISTE_REPARATEUR) && viewListReparateur != null) viewListReparateur.refreshTable();
+
+        // Rafraichissement de l'espace réparateur
+        if (nomVue.equals(VUE_DASHBOARD_REPARATEUR) && viewDashboardReparateur != null) {
+            viewDashboardReparateur.refreshData();
         }
     }
 
-    // Méthode pour ouvrir le formulaire BOUTIQUE en mode édition
+    // --- HELPER MODIFICATION ---
     public void ouvrirModificationBoutique(Boutique b) {
         changerVue(VUE_FORM_BOUTIQUE);
-        if (this.viewFormBoutique != null) {
-            this.viewFormBoutique.setBoutiqueEnEdition(b);
-        }
+        if (this.viewFormBoutique != null) this.viewFormBoutique.setBoutiqueEnEdition(b);
     }
 
-    // Méthode pour ouvrir le formulaire REPARATEUR en mode édition
     public void ouvrirModificationReparateur(Reparateur r) {
         changerVue(VUE_FORM_REPARATEUR);
-        if (this.viewFormReparateur != null) {
-            // Assurez-vous d'avoir ajouté cette méthode setReparateurAModifier 
-            // dans ViewFormReparateur !
-            this.viewFormReparateur.setReparateurAModifier(r);
-        }
+        if (this.viewFormReparateur != null) this.viewFormReparateur.setReparateurAModifier(r);
     }
 
     // --- GESTION SESSION ---
-    
     public void setCurrentUser(User u) { 
         this.currentUser = u; 
         updateUIState();
@@ -161,10 +147,7 @@ public class ModernMainFrame extends JFrame {
     public User getCurrentUser() { return this.currentUser; }
     
     public Proprietaire getProprietaireConnecte() {
-        if (currentUser != null && currentUser instanceof Proprietaire) {
-            return (Proprietaire) currentUser;
-        }
-        return null;
+        return (currentUser instanceof Proprietaire) ? (Proprietaire) currentUser : null;
     }
 
     private void updateUIState() {
@@ -175,10 +158,7 @@ public class ModernMainFrame extends JFrame {
         repaint();
     }
 
-    // ========================================================================================
-    //                                COMPOSANTS UI (NAVBAR & HOME)
-    // ========================================================================================
-
+    // --- UI COMPONENTS ---
     private JPanel createNavbar() {
         JPanel nav = new JPanel(new BorderLayout());
         nav.setBackground(Color.WHITE);
@@ -195,8 +175,7 @@ public class ModernMainFrame extends JFrame {
         logo.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent e) { 
                 if(currentUser != null) {
-                    if(currentUser instanceof Proprietaire) changerVue(VUE_DASHBOARD_PROPRIO);
-                    else changerVue(VUE_DASHBOARD_REPARATEUR);
+                    changerVue(currentUser instanceof Proprietaire ? VUE_DASHBOARD_PROPRIO : VUE_DASHBOARD_REPARATEUR);
                 } else {
                     changerVue(VUE_ACCUEIL); 
                 }
@@ -211,7 +190,6 @@ public class ModernMainFrame extends JFrame {
         if (currentUser != null) {
             JLabel lblUser = new JLabel("Bonjour, " + currentUser.getNom());
             lblUser.setFont(Theme.FONT_REGULAR);
-            lblUser.setForeground(Theme.TEXT_BODY);
             rightNav.add(lblUser);
 
             JButton btnLogout = new JButton("Déconnexion");
@@ -241,12 +219,9 @@ public class ModernMainFrame extends JFrame {
 
         JLabel title = new JLabel("Bienvenue sur AlloFix");
         title.setFont(Theme.FONT_HERO);
-        title.setForeground(Theme.TEXT_HEADLINE);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
         
         JLabel subtitle = new JLabel("Choisissez votre espace de connexion");
-        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        subtitle.setForeground(Theme.TEXT_BODY);
         subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JPanel cardsContainer = new JPanel(new FlowLayout(FlowLayout.CENTER, 40, 40));
@@ -276,8 +251,6 @@ public class ModernMainFrame extends JFrame {
         lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
         
         JLabel lblDesc = new JLabel(desc);
-        lblDesc.setFont(Theme.FONT_REGULAR);
-        lblDesc.setForeground(Theme.TEXT_BODY);
         lblDesc.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JButton btn = UIFactory.createGradientButton("Accéder");
@@ -296,40 +269,9 @@ public class ModernMainFrame extends JFrame {
         return card;
     }
 
-    private JPanel createDashboardReparateur() {
-        return createSimplePage("Espace Technique", "Bienvenue dans l'interface de réparation", Theme.PRIMARY);
-    }
-
-    private JPanel createSimplePage(String title, String subtitle, Color color) {
-        JPanel p = new JPanel(new GridBagLayout());
-        p.setBackground(Theme.BACKGROUND);
-        
-        JPanel content = new JPanel();
-        content.setOpaque(false);
-        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        
-        JLabel lbl = new JLabel(title);
-        lbl.setFont(Theme.FONT_HERO);
-        lbl.setForeground(color);
-        lbl.setAlignmentX(Component.CENTER_ALIGNMENT);
-        
-        JLabel sub = new JLabel(subtitle);
-        sub.setFont(Theme.FONT_REGULAR);
-        sub.setForeground(Theme.TEXT_BODY);
-        sub.setAlignmentX(Component.CENTER_ALIGNMENT);
-        
-        content.add(lbl);
-        content.add(Box.createVerticalStrut(10));
-        content.add(sub);
-        p.add(content);
-        return p;
-    }
-
     public static void main(String[] args) {
-        // Amélioration du rendu des polices
         System.setProperty("awt.useSystemAAFontSettings", "on");
         System.setProperty("swing.aatext", "true");
-        
         SwingUtilities.invokeLater(() -> new ModernMainFrame().setVisible(true));
     }
 }
