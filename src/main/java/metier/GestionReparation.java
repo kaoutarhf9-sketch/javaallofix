@@ -5,8 +5,12 @@ import dao.Device;
 import dao.Reparation;
 import utils.JpaUtil;
 
-import javax.persistence.*;
+import javax.persistence.EntityManager;
+import javax.persistence.EntityTransaction;
 import java.util.List;
+
+// ✅ IMPORT IMPORTANT POUR L'ÉTAT
+import metier.EtatReparation;
 
 public class GestionReparation implements IGestionReparation {
 
@@ -16,33 +20,35 @@ public class GestionReparation implements IGestionReparation {
         this.em = JpaUtil.getEntityManager();
     }
 
+    // =====================================================
+    // SAUVEGARDE D'UNE NOUVELLE RÉPARATION
+    // =====================================================
     @Override
     public void save(Reparation r) {
         EntityTransaction tx = em.getTransaction();
         try {
             tx.begin();
 
-            // 1️⃣ Récupérer les entités liées
             Device device = r.getDevice();
             Client client = device.getClient();
 
-            // 2️⃣ Générer le code client si absent
+            // Génération du code client si absent
             if (client.getCodeClient() == null || client.getCodeClient().isEmpty()) {
                 client.setCodeClient("CL-" + System.currentTimeMillis());
             }
 
-            // 3️⃣ CLIENT : persist ou merge
+            // Gestion client
             if (client.getIdClient() == 0) {
                 em.persist(client);
             } else {
                 client = em.merge(client);
             }
 
-            // 4️⃣ DEVICE : Lier au client géré
+            // Gestion device
             device.setClient(client);
             device = em.merge(device);
 
-            // 5️⃣ REPARATION : Lier au device géré
+            // Gestion réparation
             r.setDevice(device);
             em.persist(r);
 
@@ -53,25 +59,39 @@ public class GestionReparation implements IGestionReparation {
         }
     }
 
+    // =====================================================
+    // MISE À JOUR (CHANGEMENT D'ÉTAT)
+    // =====================================================
     @Override
     public void update(Reparation r) {
         EntityTransaction tx = em.getTransaction();
         try {
             tx.begin();
+
+            // ✅ RÈGLE MÉTIER :
+            // SI LA RÉPARATION EST LIVRÉE → RESTE = 0
+            if (r.getEtat() == EtatReparation.LIVREE) {
+                r.setReste(0.0);
+                r.setAvance(r.getPrixTotal());
+            }
+
             em.merge(r);
             tx.commit();
+
         } catch (Exception e) {
             if (tx.isActive()) tx.rollback();
             e.printStackTrace();
         }
     }
 
+    // =====================================================
+    // SUPPRESSION
+    // =====================================================
     @Override
     public void delete(Reparation r) {
         EntityTransaction tx = em.getTransaction();
         try {
             tx.begin();
-            // Petite astuce : on merge avant de remove pour être sûr que l'objet est attaché
             em.remove(em.contains(r) ? r : em.merge(r));
             tx.commit();
         } catch (Exception e) {
@@ -80,14 +100,16 @@ public class GestionReparation implements IGestionReparation {
         }
     }
 
+    // =====================================================
+    // RÉCUPÉRATION DE TOUTES LES RÉPARATIONS
+    // =====================================================
     @Override
     public List<Reparation> findAll() {
-        // 🔥 LA SOLUTION AU PROBLÈME DE RAFRAÎCHISSEMENT 🔥
-        // On vide le cache de l'EntityManager pour être sûr de récupérer 
-        // les données fraîchement insérées par les autres onglets.
-        em.clear(); 
-        
-        return em.createQuery("FROM Reparation", Reparation.class)
-                 .getResultList();
+        // 🔥 Important pour rafraîchir correctement
+        em.clear();
+
+        return em.createQuery(
+                "FROM Reparation", Reparation.class
+        ).getResultList();
     }
 }

@@ -1,20 +1,19 @@
 package dao;
 
-
 import java.time.LocalDate;
-import java.util.Date;
-
 import javax.persistence.*;
+
 import lombok.*;
+
+import metier.EtatReparation; // 🔴 IMPORTANT
 
 @Entity
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Reparation  {
+public class Reparation {
 
-    
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private int idReparation;
@@ -25,6 +24,17 @@ public class Reparation  {
     private Double reste;
     private LocalDate dateDepot;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private EtatReparation etat;
+
     @ManyToOne
     private Device device;
+
+    @PrePersist
+    public void initEtat() {
+        if (etat == null) {
+            etat = EtatReparation.EN_COURS;
+        }
+    }
 }

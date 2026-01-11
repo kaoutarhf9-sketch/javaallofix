@@ -1,7 +1,8 @@
 package metier;
 
-import dao.Reparation;
 import java.util.List;
+
+import dao.Reparation;
 
 public interface IGestionReparation {
     void save(Reparation r);
