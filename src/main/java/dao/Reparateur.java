@@ -26,6 +26,9 @@ public class Reparateur extends User{
 	
 	@OneToMany
 	private List<Recette> recette;
+	
+	@OneToMany
+	private List<Reparation> reparations;
 		
 
 }

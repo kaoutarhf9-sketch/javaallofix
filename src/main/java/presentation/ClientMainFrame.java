@@ -9,15 +9,21 @@ import javax.swing.border.LineBorder;
 
 import dao.User;
 import dao.Proprietaire;
+import dao.Reparateur;
 
 public class ClientMainFrame extends JFrame {
 
     private User currentUser; 
 
+    // Constructeur sans user (lancement par défaut)
+    public ClientMainFrame() {
+        this(null);
+    }
+
     public ClientMainFrame(User user) {
         this.currentUser = user;
 
-        setTitle("AlloFix | Accueil Client");
+        setTitle("AlloFix | Portail Service");
         setSize(1280, 900);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -41,7 +47,7 @@ public class ClientMainFrame extends JFrame {
     }
 
     // ========================================================================================
-    // 1. NAVBAR AVEC CHARGEMENT ASYNCHRONE
+    // 1. NAVBAR AVEC LOGIQUE DE BASCULE VERS MODERNMAINFRAME
     // ========================================================================================
     private JPanel createNavbar() {
         JPanel nav = new JPanel(new BorderLayout());
@@ -49,51 +55,48 @@ public class ClientMainFrame extends JFrame {
         nav.setPreferredSize(new Dimension(1000, 90));
         nav.setBorder(new EmptyBorder(20, 50, 20, 50));
 
-        // --- LOGO TEXTE SIMPLE ---
+        // --- LOGO ---
         JLabel logo = new JLabel("AlloFix");
         logo.setFont(new Font("Segoe UI", Font.BOLD, 28));
         logo.setForeground(Theme.SIDEBAR_BG); 
         nav.add(logo, BorderLayout.WEST);
 
-        // --- BOUTONS ---
+        // --- ACTIONS ---
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 5));
         actions.setOpaque(false);
 
         if (this.currentUser == null) {
             
-            // BOUTON PRINCIPAL : ESPACE PRO / CONNEXION
+            // CAS 1 : VISITEUR (NON CONNECTÉ)
             JButton btnPro = createNavButton("Espace Pro / Connexion", true); 
             
             btnPro.addActionListener(e -> {
-                // 1. FEEDBACK VISUEL IMMÉDIAT
+                // Feedback visuel
                 setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
                 btnPro.setText("Chargement...");
-                btnPro.setEnabled(false); // On bloque le bouton pour éviter le spam
+                btnPro.setEnabled(false);
 
-                // 2. CHARGEMENT EN ARRIÈRE-PLAN (SwingWorker)
-                // Cela empêche l'écran de devenir blanc/figé pendant la connexion BDD
+                // 🔥 TRANSITION VERS MODERN MAIN FRAME
                 new SwingWorker<ModernMainFrame, Void>() {
                     @Override
                     protected ModernMainFrame doInBackground() throws Exception {
-                        // C'est ici que le "lourd" travail se fait
+                        // On instancie la "Grosse" application (Backend)
                         return new ModernMainFrame(); 
                     }
 
                     @Override
                     protected void done() {
                         try {
-                            // 3. AFFICHAGE UNE FOIS PRÊT
-                            ModernMainFrame frame = get();
-                            frame.setVisible(true);
-                            
-                            // 4. FERMETURE PROPRE DE L'ANCIENNE FENÊTRE
-                            dispose(); 
+                            ModernMainFrame backend = get();
+                            backend.setVisible(true);
+                            // On ouvre directement la page de login PROPRIO par défaut
+                            backend.changerVue(ModernMainFrame.VUE_LOGIN_PROPRIO); 
+                            dispose(); // On ferme la fenêtre Client
                         } catch (Exception ex) {
-                            // En cas d'erreur, on remet le bouton normal
+                            ex.printStackTrace();
                             setCursor(Cursor.getDefaultCursor());
                             btnPro.setText("Espace Pro / Connexion");
                             btnPro.setEnabled(true);
-                            JOptionPane.showMessageDialog(null, "Erreur de chargement : " + ex.getMessage());
                         }
                     }
                 }.execute();
@@ -102,11 +105,10 @@ public class ClientMainFrame extends JFrame {
             actions.add(btnPro);
             
         } else {
-            // MODE DÉJÀ CONNECTÉ
-            JButton btnDash = createNavButton("Retour à mon Espace", true);
+            // CAS 2 : DÉJÀ CONNECTÉ (Retour au Dashboard)
+            JButton btnDash = createNavButton("Accéder à mon Espace", true);
             
             btnDash.addActionListener(e -> {
-                // Ici aussi on met un petit worker pour la fluidité si la BDD est lente
                 setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
                 btnDash.setText("Ouverture...");
                 
@@ -114,9 +116,9 @@ public class ClientMainFrame extends JFrame {
                     @Override
                     protected ModernMainFrame doInBackground() {
                         ModernMainFrame frame = new ModernMainFrame();
-                        frame.setCurrentUser(currentUser);
+                        frame.setCurrentUser(currentUser); // On repasse l'user
                         
-                        // Redirection directe vers la bonne vue
+                        // Redirection intelligente
                         if (currentUser instanceof Proprietaire) {
                             frame.changerVue(ModernMainFrame.VUE_DASHBOARD_PROPRIO);
                         } else {
@@ -142,7 +144,7 @@ public class ClientMainFrame extends JFrame {
     }
 
     // ========================================================================================
-    // 2. HERO SECTION
+    // 2. HERO SECTION (CONTENU CLIENT)
     // ========================================================================================
     private JPanel createHeroSection() {
         JPanel container = new JPanel(new GridBagLayout());
@@ -163,21 +165,20 @@ public class ClientMainFrame extends JFrame {
         container.add(title, gbc);
 
         // Sous-titre
-        JLabel subtitle = new JLabel("Trouvez le meilleur expert certifié près de chez vous.");
+        JLabel subtitle = new JLabel("Suivez l'état de votre réparation en temps réel.");
         subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 18));
         subtitle.setForeground(Theme.TEXT_BODY);
         gbc.gridy++; gbc.insets = new Insets(0, 0, 60, 0);
         container.add(subtitle, gbc);
         
-        // Barre de recherche
+        // Barre de recherche (Suivi Réparation)
         JPanel searchBar = createFloatingSearchBar();
         gbc.gridy++; gbc.insets = new Insets(0, 0, 80, 0);
         container.add(searchBar, gbc);
 
-        // Cartes Catégories (Simple texte)
+        // Cartes Catégories
         JPanel grid = new JPanel(new GridLayout(1, 4, 20, 0));
         grid.setOpaque(false);
-        
         grid.add(createSimpleCategoryCard("Smartphone"));
         grid.add(createSimpleCategoryCard("Ordinateur"));
         grid.add(createSimpleCategoryCard("Tablette"));
@@ -203,7 +204,7 @@ public class ClientMainFrame extends JFrame {
         ));
 
         JTextField field = new JTextField();
-        field.setText("Rechercher un modèle, une panne...");
+        field.setText("Entrez votre Code Client (ex: CL-1789...)");
         field.setFont(new Font("Segoe UI", Font.PLAIN, 16));
         field.setForeground(Color.GRAY);
         field.setBorder(null);
@@ -211,31 +212,39 @@ public class ClientMainFrame extends JFrame {
         
         field.addFocusListener(new FocusAdapter() {
             public void focusGained(FocusEvent e) {
-                if(field.getText().startsWith("Rechercher")) {
+                if(field.getText().startsWith("Entrez")) {
                     field.setText("");
                     field.setForeground(Theme.TEXT_HEADLINE);
                 }
             }
             public void focusLost(FocusEvent e) {
                 if(field.getText().isEmpty()) {
-                    field.setText("Rechercher un modèle, une panne...");
+                    field.setText("Entrez votre Code Client (ex: CL-1789...)");
                     field.setForeground(Color.GRAY);
                 }
             }
         });
 
-        JButton btnSearch = new JButton("Trouver");
+        JButton btnSearch = new JButton("Suivre");
         btnSearch.setFont(new Font("Segoe UI", Font.BOLD, 15));
         btnSearch.setForeground(Color.WHITE);
         btnSearch.setBackground(Theme.PRIMARY);
         btnSearch.setBorder(new EmptyBorder(0, 30, 0, 30));
         btnSearch.setFocusPainted(false);
         btnSearch.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnSearch.addActionListener(e -> JOptionPane.showMessageDialog(this, "Module de recherche publique bientôt disponible"));
+        
+        // Action Suivi
+        btnSearch.addActionListener(e -> {
+            String code = field.getText().trim();
+            if(code.isEmpty() || code.startsWith("Entrez")) {
+                JOptionPane.showMessageDialog(this, "Veuillez entrer un code valide.");
+            } else {
+                JOptionPane.showMessageDialog(this, "Recherche du dossier : " + code + "\n(Connectez ici votre méthode de recherche)");
+            }
+        });
 
         p.add(field, BorderLayout.CENTER);
         p.add(btnSearch, BorderLayout.EAST);
-        
         return p;
     }
 
@@ -248,18 +257,15 @@ public class ClientMainFrame extends JFrame {
             new LineBorder(new Color(226, 232, 240), 1, true),
             new EmptyBorder(10, 10, 10, 10)
         );
-        
         Border hoverBorder = BorderFactory.createCompoundBorder(
             new LineBorder(Theme.PRIMARY, 2, true),
             new EmptyBorder(9, 9, 9, 9)
         );
         
         card.setBorder(defaultBorder);
-        
         JLabel lTitle = new JLabel(title);
         lTitle.setFont(new Font("Segoe UI", Font.BOLD, 15));
         lTitle.setForeground(Theme.TEXT_HEADLINE);
-        
         card.add(lTitle);
 
         card.addMouseListener(new MouseAdapter() {
@@ -274,11 +280,7 @@ public class ClientMainFrame extends JFrame {
                 card.setBackground(Color.WHITE);
                 lTitle.setForeground(Theme.TEXT_HEADLINE);
             }
-            public void mouseClicked(MouseEvent e) {
-                 JOptionPane.showMessageDialog(null, "Filtre : " + title);
-            }
         });
-
         return card;
     }
 
@@ -311,13 +313,16 @@ public class ClientMainFrame extends JFrame {
                 else btn.setBorder(new LineBorder(new Color(203, 213, 225), 1));
             }
         });
-        
         return btn;
     }
 
+    // ========================================================================================
+    // 🔥 POINT D'ENTRÉE DE L'APPLICATION
+    // ========================================================================================
     public static void main(String[] args) {
         System.setProperty("awt.useSystemAAFontSettings", "on");
         System.setProperty("swing.aatext", "true");
+        // On lance ClientMainFrame en premier !
         SwingUtilities.invokeLater(() -> new ClientMainFrame(null).setVisible(true));
     }
 }

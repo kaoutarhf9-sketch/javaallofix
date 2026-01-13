@@ -1,8 +1,7 @@
 package metier;
 
 import java.util.List;
-import javax.persistence.EntityManager;
-import javax.persistence.Query;
+import javax.persistence.*;
 
 import dao.Boutique;
 import dao.Reparateur;
@@ -12,99 +11,120 @@ import utils.PasswordUtils;
 
 public class GestionReparateur implements IGestionReparateur {
 
-    private EntityManager em;
-
-    public GestionReparateur() {
-        this.em = JpaUtil.getEntityManager();
-    }
+    public GestionReparateur() {}
 
     @Override
     public void ajouterReparateur(Reparateur r, int idBoutique) {
+        EntityManager em = JpaUtil.getEntityManager();
+        EntityTransaction tx = em.getTransaction();
+
         try {
-            Boutique b = em.find(Boutique.class, idBoutique);
+            tx.begin();
 
-            if (b != null) {
-                // Génération Mdp
-                String motDePasseGenere = PasswordUtils.generatePassword(8);
+            // --- 1. VERIFICATION PRÉALABLE (Anti-Doublon) ---
+            // On vérifie manuellement si le CIN ou l'Email existe déjà dans la table User
+            // Cela évite l'erreur violente "GenericJDBCException"
+            Long count = em.createQuery("SELECT count(u) FROM User u WHERE u.cin = :cin OR u.email = :email", Long.class)
+                    .setParameter("cin", r.getCin())
+                    .setParameter("email", r.getEmail())
+                    .getSingleResult();
 
-                // Config
-                r.setBoutique(b);
-                r.setMdp(motDePasseGenere);
-
-                // Sauvegarde
-                em.getTransaction().begin();
-                em.persist(r);
-                em.getTransaction().commit();
-
-                System.out.println("Réparateur créé ID: " + r.getIdU());
-
-                final String emailDest = r.getEmail(); 
-                final String nom = r.getNom();
-                final String mdp = motDePasseGenere;
-
-                // Envoi Email dans un thread séparé
-                new Thread(() -> {
-                    try {
-                        if(emailDest != null && emailDest.contains("@")) {
-                             EmailService.envoyerEmailReparateur(emailDest, nom, mdp);
-                        } else {
-                            System.err.println("L'adresse email est invalide ou vide : " + emailDest);
-                        }
-                    } catch (Exception e) {
-                        System.err.println("ERREUR CRITIQUE ENVOI MAIL :");
-                        e.printStackTrace();
-                    }
-                }).start();
-
-            } else {
-                System.err.println("Erreur : Boutique introuvable ID " + idBoutique);
+            if (count > 0) {
+                throw new RuntimeException("Doublon détecté : Un utilisateur avec ce CIN ou cet Email existe déjà.");
             }
+
+            // --- 2. RECUPERATION BOUTIQUE ---
+            Boutique b = em.find(Boutique.class, idBoutique);
+            if (b == null) {
+                throw new RuntimeException("La boutique sélectionnée (ID " + idBoutique + ") n'existe pas.");
+            }
+
+            // --- 3. CONFIGURATION ---
+            String password = PasswordUtils.generatePassword(8);
+            r.setMdp(password);
+            r.setBoutique(b);
+            
+            // Si vous avez un champ 'role' dans User, décommentez ceci :
+            // r.setRole("REPARATEUR"); 
+
+            // --- 4. SAUVEGARDE ---
+            em.persist(r);
+            tx.commit();
+            
+            System.out.println("✅ Réparateur créé : " + r.getNom() + " (ID: " + r.getIdU() + ")");
+
+            // --- 5. EMAIL (Async) ---
+            new Thread(() -> {
+                try {
+                    EmailService.envoyerEmailReparateur(r.getEmail(), r.getNom(), password);
+                } catch (Exception e) {
+                    System.err.println("Compte créé, mais erreur d'envoi email : " + e.getMessage());
+                }
+            }).start();
+
         } catch (Exception e) {
-            if (em.getTransaction().isActive()) em.getTransaction().rollback();
-            System.err.println("Erreur Ajout Réparateur : " + e.getMessage());
-            e.printStackTrace();
+            if (tx.isActive()) tx.rollback();
+            // On relance l'erreur pour que l'interface graphique puisse l'afficher
+            throw new RuntimeException(e.getMessage());
+        } finally {
+            if (em.isOpen()) em.close();
+        }
+    }
+
+    @Override
+    public void modifierReparateur(Reparateur r) {
+        EntityManager em = JpaUtil.getEntityManager();
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            // Pour la modif, on devrait idéalement vérifier aussi les doublons si l'email change
+            // mais on va faire simple ici :
+            em.merge(r);
+            tx.commit();
+        } catch (Exception e) {
+            if (tx.isActive()) tx.rollback();
+            throw new RuntimeException("Erreur modification : " + e.getMessage());
+        } finally {
+            em.close();
         }
     }
 
     @Override
     public List<Reparateur> listerReparateursParProprietaire(int idProprietaire) {
-        String jpql = "SELECT r FROM Reparateur r WHERE r.boutique.proprietaire.idU = :idProprio";
-        Query query = em.createQuery(jpql);
-        query.setParameter("idProprio", idProprietaire);
-        return query.getResultList();
+        EntityManager em = JpaUtil.getEntityManager();
+        try {
+            return em.createQuery("SELECT r FROM Reparateur r WHERE r.boutique.proprietaire.idU = :idProprio", Reparateur.class)
+                     .setParameter("idProprio", idProprietaire)
+                     .getResultList();
+        } finally {
+            em.close();
+        }
     }
     
     @Override
     public Reparateur obtenirReparateur(int idReparateur) {
-        return em.find(Reparateur.class, idReparateur);
-    }
-
-    @Override
-    public void modifierReparateur(Reparateur r) {
+        EntityManager em = JpaUtil.getEntityManager();
         try {
-            em.getTransaction().begin();
-            em.merge(r); 
-            em.getTransaction().commit();
-            System.out.println("Réparateur modifié ID: " + r.getIdU());
-        } catch (Exception e) {
-            if (em.getTransaction().isActive()) em.getTransaction().rollback();
-            e.printStackTrace();
+            return em.find(Reparateur.class, idReparateur);
+        } finally {
+            em.close();
         }
     }
 
     @Override
     public void supprimerReparateur(int idReparateur) {
+        EntityManager em = JpaUtil.getEntityManager();
+        EntityTransaction tx = em.getTransaction();
         try {
-            em.getTransaction().begin();
+            tx.begin();
             Reparateur r = em.find(Reparateur.class, idReparateur);
-            if (r != null) {
-                em.remove(r);
-                System.out.println("Réparateur supprimé ID: " + idReparateur);
-            }
-            em.getTransaction().commit();
+            if (r != null) em.remove(r);
+            tx.commit();
         } catch (Exception e) {
-            if (em.getTransaction().isActive()) em.getTransaction().rollback();
-            e.printStackTrace();
+            if (tx.isActive()) tx.rollback();
+            throw e;
+        } finally {
+            em.close();
         }
     }
 }

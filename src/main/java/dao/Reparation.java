@@ -37,4 +37,6 @@ public class Reparation {
             etat = EtatReparation.EN_COURS;
         }
     }
+    @ManyToOne
+    private Reparateur reparateur;
 }

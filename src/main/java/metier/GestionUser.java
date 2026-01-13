@@ -2,6 +2,7 @@ package metier;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
+import javax.persistence.EntityTransaction;
 import javax.persistence.Persistence;
 import javax.persistence.Query;
 import javax.persistence.NoResultException;
@@ -9,7 +10,9 @@ import javax.persistence.RollbackException;
 
 import dao.Proprietaire;
 import dao.User;
+import utils.EmailService;
 import utils.JpaUtil;
+import utils.PasswordUtils;
 
 public class GestionUser implements IGestionUser {
     
@@ -104,5 +107,53 @@ public class GestionUser implements IGestionUser {
             e.printStackTrace();
             throw new RuntimeException("Erreur lors de la modification du profil.");
         }
+    }
+
+    public boolean reinitialiserMotDePasse(String email) {
+        EntityManager em = JpaUtil.getEntityManager();
+        EntityTransaction tx = em.getTransaction();
+        
+        try {
+            tx.begin();
+            
+            // 1. Chercher l'utilisateur par Email
+            User u = null;
+            try {
+                u = em.createQuery("SELECT u FROM User u WHERE u.email = :email", User.class)
+                      .setParameter("email", email)
+                      .getSingleResult();
+            } catch (NoResultException nre) {
+                return false; // Email introuvable
+            }
+
+            if (u != null) {
+                // 2. Générer un nouveau mot de passe
+                String nouveauMdp = PasswordUtils.generatePassword(8); // Votre utilitaire de génération
+                u.setMdp(nouveauMdp); // Pensez à le hacher si vous gérez le hashage !
+                
+                // 3. Sauvegarder en BDD
+                em.merge(u);
+                tx.commit();
+                
+                // 4. Envoyer l'email (dans un thread pour ne pas bloquer l'interface)
+                final String finalMdp = nouveauMdp;
+                new Thread(() -> {
+                    try {
+                        EmailService.envoyerEmailRecovery(email, finalMdp);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }).start();
+                
+                return true;
+            }
+            
+        } catch (Exception e) {
+            if (tx.isActive()) tx.rollback();
+            e.printStackTrace();
+        } finally {
+            em.close();
+        }
+        return false;
     }
 }

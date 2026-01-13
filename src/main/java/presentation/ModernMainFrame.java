@@ -26,10 +26,14 @@ public class ModernMainFrame extends JFrame {
     private ViewFormBoutique viewFormBoutique; 
     private ViewListReparateur viewListReparateur; 
     
-    // --- VUES RÉPARATEUR (SÉPARÉES) ---
+    // --- VUES RÉPARATEUR ---
     private ViewDashboardReparateur viewDashboardReparateur; // L'Atelier (Saisie)
-    private ViewListeReparation viewListeReparation;         // L'Historique
-    private ViewRecette viewRecette;                         // Les Recettes
+    
+    // 🔥 MODIFICATION : ON SÉPARE EN DEUX LISTES
+    private ViewListeReparation viewListeActive;     // En cours / En attente / Terminée
+    private ViewListeReparation viewListeHistorique; // Livrée (Archivée)
+    
+    private ViewRecette viewRecette;                 // Les Recettes
 
     // --- VUE COMMUNE ---
     private ViewProfile viewProfile; 
@@ -52,8 +56,9 @@ public class ModernMainFrame extends JFrame {
     public static final String VUE_FORM_BOUTIQUE = "FORM_BOUTIQUE";
     public static final String VUE_FORM_REPARATEUR = "FORM_REPARATEUR";
     
-    // Espace Réparateur (Nouvelles Constantes)
+    // Espace Réparateur
     public static final String VUE_REPARATEUR_ATELIER = "REP_ATELIER";
+    public static final String VUE_REPARATEUR_LISTE_ACTIVE = "REP_ACTIVE"; // 🔥 NOUVELLE CLEF
     public static final String VUE_REPARATEUR_HISTORIQUE = "REP_HISTORIQUE";
     public static final String VUE_REPARATEUR_RECETTE = "REP_RECETTE";
     
@@ -99,13 +104,15 @@ public class ModernMainFrame extends JFrame {
         this.viewListReparateur = new ViewListReparateur(this);
         
         // Vues Réparateur
-        // 1. Historique (Doit être créé avant l'atelier pour le rafraîchissement)
-        this.viewListeReparation = new ViewListeReparation(this);
+        // 🔥 ON INSTANCIE LES DEUX TYPES DE LISTES
+        // false = En cours (Tout sauf Livrée)
+        this.viewListeActive = new ViewListeReparation(this, false);
+        // true = Historique (Seulement Livrée)
+        this.viewListeHistorique = new ViewListeReparation(this, true);
         
-        // 2. Atelier (Prend l'historique en paramètre pour le mettre à jour après une saisie)
-        this.viewDashboardReparateur = new ViewDashboardReparateur(this, this.viewListeReparation);
+        // L'atelier a besoin de la liste active pour rafraîchir après ajout
+        this.viewDashboardReparateur = new ViewDashboardReparateur(this, this.viewListeActive);
         
-        // 3. Recettes
         this.viewRecette = new ViewRecette(this);
         
         // Vue Commune
@@ -128,7 +135,10 @@ public class ModernMainFrame extends JFrame {
         
         // Navigation Réparateur
         mainContentPanel.add(this.viewDashboardReparateur, VUE_REPARATEUR_ATELIER);
-        mainContentPanel.add(this.viewListeReparation, VUE_REPARATEUR_HISTORIQUE);
+        // 🔥 AJOUT DES DEUX VUES AU CARD LAYOUT
+        mainContentPanel.add(this.viewListeActive, VUE_REPARATEUR_LISTE_ACTIVE);
+        mainContentPanel.add(this.viewListeHistorique, VUE_REPARATEUR_HISTORIQUE);
+        
         mainContentPanel.add(this.viewRecette, VUE_REPARATEUR_RECETTE);
         
         // Commun
@@ -149,7 +159,10 @@ public class ModernMainFrame extends JFrame {
         if (nomVue.equals(VUE_LISTE_REPARATEUR) && viewListReparateur != null) viewListReparateur.refreshTable();
         
         // Refresh REPARATEUR
-        if (nomVue.equals(VUE_REPARATEUR_HISTORIQUE) && viewListeReparation != null) viewListeReparation.refreshTable();
+        // 🔥 REFRESH SÉPARÉ POUR CHAQUE LISTE
+        if (nomVue.equals(VUE_REPARATEUR_LISTE_ACTIVE) && viewListeActive != null) viewListeActive.refreshTable();
+        if (nomVue.equals(VUE_REPARATEUR_HISTORIQUE) && viewListeHistorique != null) viewListeHistorique.refreshTable();
+        
         if (nomVue.equals(VUE_REPARATEUR_RECETTE) && viewRecette != null) viewRecette.refresh();
         
         // Refresh COMMUN
@@ -186,21 +199,19 @@ public class ModernMainFrame extends JFrame {
         sidebar.setPreferredSize(new Dimension(260, 0));
         sidebar.setBorder(new EmptyBorder(40, 30, 40, 30));
 
-        // 1. LOGO TEXTE
+        // 1. LOGO
         JLabel textLogo = new JLabel("AlloFix");
         textLogo.setForeground(Color.WHITE);
         textLogo.setFont(new Font("Segoe UI", Font.BOLD, 32));
         textLogo.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
         sidebar.add(textLogo);
         sidebar.add(Box.createVerticalStrut(60));
 
-        // 2. LOGIQUE D'AFFICHAGE SELON L'UTILISATEUR
+        // 2. MENU
         if (currentUser != null) {
             
-            // --- BADGE UTILISATEUR ---
+            // Badge User
             String role = (currentUser instanceof Proprietaire) ? "Propriétaire" : "Réparateur";
-            
             JLabel lblUser = new JLabel(currentUser.getNom());
             lblUser.setFont(new Font("Segoe UI", Font.BOLD, 16));
             lblUser.setForeground(Color.WHITE);
@@ -208,7 +219,7 @@ public class ModernMainFrame extends JFrame {
             
             JLabel lblRole = new JLabel(role.toUpperCase());
             lblRole.setFont(new Font("Segoe UI", Font.BOLD, 10));
-            lblRole.setForeground(new Color(148, 163, 184)); // Gris bleu
+            lblRole.setForeground(new Color(148, 163, 184));
             lblRole.setAlignmentX(Component.LEFT_ALIGNMENT);
             
             sidebar.add(lblUser);
@@ -216,51 +227,67 @@ public class ModernMainFrame extends JFrame {
             sidebar.add(Box.createVerticalStrut(40));
 
             // --- MENUS ---
-            
             if (currentUser instanceof Proprietaire) {
-                // ✅ MENU PROPRIÉTAIRE
+                Proprietaire p = (Proprietaire) currentUser;
+
                 sidebar.add(createSidebarButton("Tableau de bord", () -> changerVue(VUE_DASHBOARD_PROPRIO)));
                 sidebar.add(Box.createVerticalStrut(5));
-                
                 sidebar.add(createSidebarButton("Mes Boutiques", () -> changerVue(VUE_LISTE_BOUTIQUE)));
                 sidebar.add(Box.createVerticalStrut(5));
-                
                 sidebar.add(createSidebarButton("Mon Équipe", () -> changerVue(VUE_LISTE_REPARATEUR)));
-                sidebar.add(Box.createVerticalStrut(5));
+                sidebar.add(Box.createVerticalStrut(20));
+
+                // 🔥 MENU ATELIER (Si Activé)
+                if (p.isEstReparateur()) {
+                    JLabel lblAtelier = new JLabel("MON ATELIER");
+                    lblAtelier.setFont(new Font("Segoe UI", Font.BOLD, 11));
+                    lblAtelier.setForeground(new Color(148, 163, 184));
+                    lblAtelier.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    sidebar.add(lblAtelier);
+                    sidebar.add(Box.createVerticalStrut(10));
+
+                    sidebar.add(createSidebarButton("Nouvelle Réparation", () -> changerVue(VUE_REPARATEUR_ATELIER)));
+                    sidebar.add(Box.createVerticalStrut(5));
+                    
+                    // 🔥 NOUVEL ONGLET AJOUTÉ ICI
+                    sidebar.add(createSidebarButton("En Cours / À Traiter", () -> changerVue(VUE_REPARATEUR_LISTE_ACTIVE)));
+                    sidebar.add(Box.createVerticalStrut(5));
+                    
+                    sidebar.add(createSidebarButton("Historique (Livrées)", () -> changerVue(VUE_REPARATEUR_HISTORIQUE)));
+                    sidebar.add(Box.createVerticalStrut(5));
+                    sidebar.add(createSidebarButton("Mes Recettes", () -> changerVue(VUE_REPARATEUR_RECETTE)));
+                    sidebar.add(Box.createVerticalStrut(20));
+                }
                 
                 sidebar.add(createSidebarButton("Mon Profil", () -> changerVue(VUE_PROFIL)));
             } 
             else if (currentUser instanceof Reparateur) {
-                // ✅ MENU RÉPARATEUR (Divisé en 3)
-                
-                // 1. Nouvelle Réparation
+                // ✅ MENU RÉPARATEUR STANDARD
                 sidebar.add(createSidebarButton("Nouvelle Réparation", () -> changerVue(VUE_REPARATEUR_ATELIER)));
                 sidebar.add(Box.createVerticalStrut(5));
                 
-                // 2. Historique
-                sidebar.add(createSidebarButton("Historique", () -> changerVue(VUE_REPARATEUR_HISTORIQUE)));
+                // 🔥 NOUVEL ONGLET AJOUTÉ ICI
+                sidebar.add(createSidebarButton("En Cours / À Traiter", () -> changerVue(VUE_REPARATEUR_LISTE_ACTIVE)));
                 sidebar.add(Box.createVerticalStrut(5));
                 
-                // 3. Mes Recettes
+                sidebar.add(createSidebarButton("Historique (Livrées)", () -> changerVue(VUE_REPARATEUR_HISTORIQUE)));
+                sidebar.add(Box.createVerticalStrut(5));
+                
                 sidebar.add(createSidebarButton("Mes Recettes", () -> changerVue(VUE_REPARATEUR_RECETTE)));
                 
-                // 4. Profil (Commun)
-                sidebar.add(Box.createVerticalStrut(5));
+                sidebar.add(Box.createVerticalStrut(20));
                 sidebar.add(createSidebarButton("Mon Profil", () -> changerVue(VUE_PROFIL)));
             }
             
-            // --- DECONNEXION ---
             sidebar.add(Box.createVerticalGlue());
-            
             JButton btnLogout = createSidebarButton("Se déconnecter", () -> {
                 setCurrentUser(null);
                 changerVue(VUE_ACCUEIL);
             });
-            btnLogout.setForeground(new Color(239, 68, 68)); // Rouge
+            btnLogout.setForeground(new Color(239, 68, 68));
             sidebar.add(btnLogout);
             
         } else {
-            // --- NON CONNECTÉ ---
             JLabel info = new JLabel("<html><div style='width:180px; color:#94a3b8'>Connectez-vous pour accéder à vos outils.</div></html>");
             sidebar.add(info);
             sidebar.add(Box.createVerticalGlue());
@@ -370,7 +397,6 @@ public class ModernMainFrame extends JFrame {
         return card;
     }
     
-    // Helpers modification
     public void ouvrirModificationBoutique(Boutique b) { changerVue(VUE_FORM_BOUTIQUE); if (this.viewFormBoutique != null) this.viewFormBoutique.setBoutiqueEnEdition(b); }
     public void ouvrirModificationReparateur(Reparateur r) { changerVue(VUE_FORM_REPARATEUR); if (this.viewFormReparateur != null) this.viewFormReparateur.setReparateurAModifier(r); }
 

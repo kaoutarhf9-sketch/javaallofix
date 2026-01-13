@@ -40,6 +40,8 @@ public abstract class User {
 
     @Column(unique = true, nullable = false)
     protected String email;
+    
+    private String photoPath;
 
     
     @Size(min = 8) 

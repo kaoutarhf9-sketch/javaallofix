@@ -3,6 +3,7 @@ package dao;
 import java.time.LocalDate;
 import java.util.List;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -43,7 +44,7 @@ public class Boutique {
 	@ManyToOne
 	private Proprietaire proprietaire;
 	
-	@OneToMany
+	@OneToMany(mappedBy = "boutique", cascade = CascadeType.ALL)
 	@ToString.Exclude
 	private List<Reparateur> reparateurs;
 

@@ -16,21 +16,18 @@ public class ViewFormReparateur extends JPanel {
 
     private ModernMainFrame frame;
     
-    // --- COUCHES MÉTIER ---
+    // Metier
     private IGestionReparateur metierReparateur;
     private GestionBoutique metierBoutique;
 
-    // --- COMPOSANTS UI ---
+    // UI
     private JLabel lblTitreForm;
     private JTextField txtNom, txtPrenom, txtCin, txtEmail, txtTel, txtPourcentage;
     private JComboBox<Boutique> comboBoutique;
     private JButton btnEnregistrer;
 
-    // --- ETAT ---
+    // État
     private Reparateur reparateurEnEdition = null;
-
-    // --- STYLES ---
-    private final Color COLOR_BORDER_DEFAULT = new Color(220, 220, 220);
 
     public ViewFormReparateur(ModernMainFrame frame) {
         this.frame = frame;
@@ -46,40 +43,38 @@ public class ViewFormReparateur extends JPanel {
     }
 
     private void initUI() {
-        setLayout(new GridBagLayout()); // Centrage général
+        setLayout(new GridBagLayout());
         setBackground(Theme.BACKGROUND);
 
-        // --- CARTE HORIZONTALE (Plus large que haute) ---
         JPanel card = new JPanel(new GridBagLayout());
-        card.setPreferredSize(new Dimension(850, 550)); // Format paysage
+        card.setPreferredSize(new Dimension(850, 550));
         card.setBackground(Color.WHITE);
-        
         card.setBorder(BorderFactory.createCompoundBorder(
             new LineBorder(new Color(230,230,230), 1, true),
             new EmptyBorder(30, 40, 30, 40)
         ));
 
-        // --- 1. EN-TÊTE (Icône + Titre) ---
-        GridBagConstraints gbcHeader = new GridBagConstraints();
-        gbcHeader.gridx = 0; gbcHeader.gridy = 0;
-        gbcHeader.gridwidth = 2; // Prend toute la largeur
-        gbcHeader.insets = new Insets(0, 0, 30, 0);
+        // Header
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        gbc.insets = new Insets(0, 0, 30, 0);
 
         JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
         headerPanel.setOpaque(false);
-        
         JLabel icon = new JLabel("👨‍🔧");
         icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 42));
-        
         lblTitreForm = UIFactory.createTitle("Nouveau Réparateur");
-        
         headerPanel.add(icon);
         headerPanel.add(lblTitreForm);
-        
-        card.add(headerPanel, gbcHeader);
+        card.add(headerPanel, gbc);
 
-        // --- 2. CHAMPS (GRILLE DE FORMULAIRE) ---
-        // On initialise les composants
+        // Reset GBC pour les champs
+        gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 0.5;
+        gbc.insets = new Insets(0, 10, 20, 10);
+
+        // Champs
         txtNom = createStyledField();
         txtPrenom = createStyledField();
         txtCin = createStyledField();
@@ -90,39 +85,31 @@ public class ViewFormReparateur extends JPanel {
         comboBoutique = new JComboBox<>();
         styleComboBox(comboBoutique);
 
-        // Configuration de la grille de champs
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 0.5; // Partage équitable de l'espace
-        gbc.insets = new Insets(0, 10, 20, 10); // Marges entre les blocs (Haut, Gauche, Bas, Droite)
-
-        // --- LIGNE 1 : Nom & Prénom ---
+        // Ligne 1
         gbc.gridy = 1;
-        gbc.gridx = 0; card.add(createFieldBlock("Nom", txtNom), gbc);
-        gbc.gridx = 1; card.add(createFieldBlock("Prénom", txtPrenom), gbc);
+        gbc.gridx = 0; card.add(createFieldBlock("Nom *", txtNom), gbc);
+        gbc.gridx = 1; card.add(createFieldBlock("Prénom *", txtPrenom), gbc);
 
-        // --- LIGNE 2 : CIN & Email ---
+        // Ligne 2
         gbc.gridy = 2;
-        gbc.gridx = 0; card.add(createFieldBlock("CIN (Identifiant)", txtCin), gbc);
-        gbc.gridx = 1; card.add(createFieldBlock("Email", txtEmail), gbc);
+        gbc.gridx = 0; card.add(createFieldBlock("CIN (Identifiant Unique) *", txtCin), gbc);
+        gbc.gridx = 1; card.add(createFieldBlock("Email (Unique) *", txtEmail), gbc);
 
-        // --- LIGNE 3 : Téléphone & Commission ---
+        // Ligne 3
         gbc.gridy = 3;
-        gbc.gridx = 0; card.add(createFieldBlock("Téléphone", txtTel), gbc);
+        gbc.gridx = 0; card.add(createFieldBlock("Téléphone *", txtTel), gbc);
         gbc.gridx = 1; card.add(createFieldBlock("Commission (%)", txtPourcentage), gbc);
 
-        // --- LIGNE 4 : Boutique (Pleine largeur) ---
+        // Ligne 4
         gbc.gridy = 4;
-        gbc.gridx = 0;
-        gbc.gridwidth = 2; // Span sur 2 colonnes
-        card.add(createFieldBlock("Affecter à la boutique", comboBoutique), gbc);
+        gbc.gridx = 0; gbc.gridwidth = 2;
+        card.add(createFieldBlock("Affecter à la boutique *", comboBoutique), gbc);
 
-        // --- 3. BOUTONS (Bas de page) ---
+        // Boutons
         gbc.gridy = 5;
-        gbc.gridwidth = 2;
-        gbc.insets = new Insets(20, 10, 0, 10); // Marge supérieure plus grande
+        gbc.insets = new Insets(20, 10, 0, 10);
         
-        JPanel btnPanel = new JPanel(new GridLayout(1, 2, 20, 0)); // 2 boutons côte à côte
+        JPanel btnPanel = new JPanel(new GridLayout(1, 2, 20, 0));
         btnPanel.setOpaque(false);
         
         btnEnregistrer = UIFactory.createGradientButton("Créer le compte");
@@ -132,45 +119,36 @@ public class ViewFormReparateur extends JPanel {
         JButton btnCancel = UIFactory.createOutlineButton("Annuler");
         btnCancel.addActionListener(e -> frame.changerVue(ModernMainFrame.VUE_DASHBOARD_PROPRIO));
 
-        btnPanel.add(btnCancel);     // Annuler à gauche
-        btnPanel.add(btnEnregistrer); // Valider à droite
+        btnPanel.add(btnCancel);
+        btnPanel.add(btnEnregistrer);
 
         card.add(btnPanel, gbc);
-
-        // Ajout final
         add(card);
     }
 
-    // --- HELPER : Création d'un bloc Label + Champ ---
     private JPanel createFieldBlock(String labelText, JComponent field) {
-        JPanel p = new JPanel(new BorderLayout(0, 8)); // 8px d'écart vertical
+        JPanel p = new JPanel(new BorderLayout(0, 8));
         p.setOpaque(false);
-        
         JLabel l = new JLabel(labelText);
         l.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        l.setForeground(new Color(100, 116, 139)); // Gris bleuté moderne
-        
+        l.setForeground(new Color(100, 116, 139));
         p.add(l, BorderLayout.NORTH);
         p.add(field, BorderLayout.CENTER);
-        
         return p;
     }
 
-    // =============================================================
-    // LOGIQUE MÉTIER (Identique à précédemment)
-    // =============================================================
-
     public void setReparateurAModifier(Reparateur r) {
         this.reparateurEnEdition = r;
-        
         lblTitreForm.setText("Modifier Réparateur");
         btnEnregistrer.setText("Enregistrer les modifications");
         
         txtNom.setText(r.getNom());
         txtPrenom.setText(r.getPrenom());
         txtCin.setText(r.getCin());
+        // On bloque l'édition du CIN en mode modification (clé métier souvent immuable)
         txtCin.setEditable(false);
-        txtCin.setBackground(new Color(245, 245, 245)); // Grisé
+        txtCin.setBackground(new Color(245, 245, 245));
+        
         txtEmail.setText(r.getEmail());
         txtTel.setText(r.getNumtel());
         txtPourcentage.setText(String.valueOf(r.getPourcentage()));
@@ -178,8 +156,7 @@ public class ViewFormReparateur extends JPanel {
         chargerLesBoutiques();
         if (r.getBoutique() != null) {
             for (int i = 0; i < comboBoutique.getItemCount(); i++) {
-                Boutique item = comboBoutique.getItemAt(i);
-                if (item.getIdb() == r.getBoutique().getIdb()) {
+                if (comboBoutique.getItemAt(i).getIdb() == r.getBoutique().getIdb()) {
                     comboBoutique.setSelectedIndex(i);
                     break;
                 }
@@ -191,7 +168,6 @@ public class ViewFormReparateur extends JPanel {
         this.reparateurEnEdition = null;
         lblTitreForm.setText("Nouveau Réparateur");
         btnEnregistrer.setText("Créer le compte");
-        
         txtCin.setEditable(true);
         txtCin.setBackground(Color.WHITE);
         viderChamps();
@@ -218,40 +194,59 @@ public class ViewFormReparateur extends JPanel {
         String strPourc = txtPourcentage.getText().trim();
         Boutique selectedBoutique = (Boutique) comboBoutique.getSelectedItem();
 
-        if (nom.isEmpty() || prenom.isEmpty() || cin.isEmpty() || selectedBoutique == null) {
-            JOptionPane.showMessageDialog(this, "Champs obligatoires manquants.", "Erreur", JOptionPane.ERROR_MESSAGE);
+        if (nom.isEmpty() || prenom.isEmpty() || cin.isEmpty() || email.isEmpty() || selectedBoutique == null) {
+            JOptionPane.showMessageDialog(this, "Veuillez remplir tous les champs obligatoires (*).", "Données manquantes", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // Vérification longueur Téléphone (max 10 selon votre @Column)
+        if (tel.length() > 10) {
+            JOptionPane.showMessageDialog(this, "Le numéro de téléphone ne doit pas dépasser 10 chiffres (Format 06...)", "Erreur Format", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
         try {
-            Double pourcentage = Double.parseDouble(strPourc);
+            Double pourcentage = strPourc.isEmpty() ? 0.0 : Double.parseDouble(strPourc);
             
             if (reparateurEnEdition == null) {
-                Reparateur r = Reparateur.builder()
-                        .nom(nom).prenom(prenom).cin(cin)
-                        .email(email).numtel(tel).pourcentage(pourcentage)
-                        .boutique(selectedBoutique)
-                        .build();
+                // --- CREATION ---
+                Reparateur r = new Reparateur();
+                r.setNom(nom);
+                r.setPrenom(prenom);
+                r.setCin(cin);
+                r.setEmail(email);
+                r.setNumtel(tel);
+                r.setPourcentage(pourcentage);
+                
+                // Appel métier qui fait les vérifs de doublons
                 metierReparateur.ajouterReparateur(r, selectedBoutique.getIdb());
-                JOptionPane.showMessageDialog(this, "Compte créé !");
+                
+                JOptionPane.showMessageDialog(this, "Compte réparateur créé avec succès !", "Succès", JOptionPane.INFORMATION_MESSAGE);
+                
             } else {
+                // --- MODIFICATION ---
                 reparateurEnEdition.setNom(nom);
                 reparateurEnEdition.setPrenom(prenom);
                 reparateurEnEdition.setEmail(email);
                 reparateurEnEdition.setNumtel(tel);
                 reparateurEnEdition.setPourcentage(pourcentage);
                 reparateurEnEdition.setBoutique(selectedBoutique);
+                
                 metierReparateur.modifierReparateur(reparateurEnEdition);
-                JOptionPane.showMessageDialog(this, "Modifications enregistrées !");
+                JOptionPane.showMessageDialog(this, "Modifications enregistrées.", "Succès", JOptionPane.INFORMATION_MESSAGE);
             }
 
             viderChamps();
             frame.changerVue(ModernMainFrame.VUE_LISTE_REPARATEUR);
 
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Pourcentage invalide.", "Erreur", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Le pourcentage doit être un nombre valide (ex: 15.5).", "Format Invalide", JOptionPane.ERROR_MESSAGE);
+        } catch (RuntimeException e) {
+            // C'est ici que l'on capture l'erreur de doublon venant du métier
+            JOptionPane.showMessageDialog(this, "Impossible d'enregistrer :\n" + e.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Erreur : " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Erreur technique : " + e.getMessage(), "Erreur Critique", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -264,8 +259,8 @@ public class ViewFormReparateur extends JPanel {
         JTextField f = new JTextField();
         f.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         f.setBorder(BorderFactory.createCompoundBorder(
-            new LineBorder(COLOR_BORDER_DEFAULT, 1, true),
-            new EmptyBorder(8, 10, 8, 10) // Padding plus confortable
+            new LineBorder(new Color(220, 220, 220), 1, true),
+            new EmptyBorder(8, 10, 8, 10)
         ));
         return f;
     }
@@ -273,9 +268,7 @@ public class ViewFormReparateur extends JPanel {
     private void styleComboBox(JComboBox<Boutique> box) {
         box.setBackground(Color.WHITE);
         box.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        // Petit hack pour augmenter la hauteur
         box.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        
         box.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
