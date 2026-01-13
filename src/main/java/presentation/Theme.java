@@ -4,50 +4,24 @@ import java.awt.Color;
 import java.awt.Font;
 
 public class Theme {
-    // ========================================================================================
-    //                                      PALETTE DE COULEURS
-    // ========================================================================================
+    public static final Color SIDEBAR_BG = new Color(30, 41, 59);    // Bleu nuit très sombre
+    public static final Color BACKGROUND = new Color(241, 245, 249); // Gris très clair (presque blanc)
+    public static final Color PANEL_BG = Color.WHITE;
     
-    // --- FOND & SURFACES ---
-    // Un blanc cassé très subtil (Slate 50), plus doux pour les yeux que le blanc pur #FFFFFF
-    public static final Color BACKGROUND = new Color(248, 250, 252); 
-    public static final Color SURFACE = new Color(255, 255, 255);
+    public static final Color PRIMARY = new Color(59, 130, 246);     // Bleu vif
+    public static final Color PRIMARY_HOVER = new Color(37, 99, 235);
     
-    // --- TEXTE ---
-    // Noir bleuté profond pour les titres (Slate 900)
-    public static final Color TEXT_HEADLINE = new Color(15, 23, 42); 
-    // Gris moyen pour le texte courant (Slate 500)
-    public static final Color TEXT_BODY = new Color(100, 116, 139);  
-    public static final Color TEXT_LIGHT = new Color(255, 255, 255);
+    public static final Color TEXT_SIDEBAR = new Color(148, 163, 184); // Gris clair pour sidebar
+    public static final Color TEXT_SIDEBAR_ACTIVE = Color.WHITE;
     
-    // --- DÉGRADÉ DE MARQUE (BRANDING) ---
-    // C'est ce qui donne le look "Tech/Startup"
-    public static final Color GRADIENT_START = new Color(79, 70, 229); // Indigo vibrant
-    public static final Color GRADIENT_END = new Color(124, 58, 237);   // Violet profond
+    public static final Color TEXT_HEADLINE = new Color(15, 23, 42); // Presque noir
+    public static final Color TEXT_BODY = new Color(51, 65, 85);     // Gris foncé
     
-    // Pour les éléments unis (si pas de dégradé)
-    public static final Color PRIMARY = GRADIENT_START;
-    public static final Color PRIMARY_HOVER = new Color(67, 56, 202); // Indigo plus sombre
-    public static final Color NAVY = new Color(30, 41, 59); // Bleu nuit corporate
+    public static final Color DANGER = new Color(239, 68, 68);       // Rouge moderne
 
-    // --- ACCENTS & ÉTATS ---
-    public static final Color SUCCESS = new Color(16, 185, 129); // Vert Émeraude
-    public static final Color DANGER = new Color(239, 68, 68);   // Rouge Vif
-    public static final Color WARNING = new Color(245, 158, 11); // Orange Ambre
-    
-    // ========================================================================================
-    //                                      TYPOGRAPHIE
-    // ========================================================================================
-    
-    // Titre géant (Page d'accueil)
-    public static final Font FONT_HERO = new Font("Segoe UI", Font.BOLD, 48);
-    
-    // Titres de sections / Cartes
-    public static final Font FONT_TITLE = new Font("Segoe UI", Font.BOLD, 22);
-    
-    // Texte standard (Corps de texte)
-    public static final Font FONT_REGULAR = new Font("Segoe UI", Font.PLAIN, 15);
-    
-    // Texte en gras (Labels, Boutons)
+    // Polices
+    public static final Font FONT_HERO = new Font("Segoe UI", Font.BOLD, 28);
+    public static final Font FONT_TITLE = new Font("Segoe UI", Font.BOLD, 18);
+    public static final Font FONT_REGULAR = new Font("Segoe UI", Font.PLAIN, 14);
     public static final Font FONT_BOLD = new Font("Segoe UI", Font.BOLD, 14);
 }

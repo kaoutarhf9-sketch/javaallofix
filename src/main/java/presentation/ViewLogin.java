@@ -3,7 +3,6 @@ package presentation;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
-import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 
@@ -18,22 +17,38 @@ public class ViewLogin extends JPanel {
     private IGestionUser metier;
     private String userType;
 
+    // Composants
+    private JTextField txtCinField;
+    private JPasswordField txtMdpField;
+    private JButton btnLogin;
+    private JLabel lblError;
+
     public ViewLogin(ModernMainFrame frame, IGestionUser metier, String userType) {
         this.frame = frame;
         this.metier = metier;
         this.userType = userType;
 
         // 1. CONFIGURATION DU FOND
-        setLayout(new GridBagLayout());
+        setLayout(new GridBagLayout()); 
         setBackground(Theme.BACKGROUND);
 
-        // 2. CRÉATION DE LA CARTE CENTRALE
-        JPanel card = UIFactory.createCard();
-        card.setPreferredSize(new Dimension(400, 600)); // Taille fixe élégante
-
-        // --- A. EN-TÊTE (BOUTON RETOUR) ---
-        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        header.setOpaque(false);
+        // 2. LA CARTE DE CONNEXION
+        JPanel card = new JPanel();
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setBackground(Color.WHITE);
+        
+        int height = userType.equals("Propriétaire") ? 540 : 480;
+        card.setPreferredSize(new Dimension(420, height));
+        
+        card.setBorder(BorderFactory.createCompoundBorder(
+            new LineBorder(new Color(230, 230, 230), 1, true),
+            new EmptyBorder(30, 40, 30, 40)
+        ));
+        
+        // --- A. HEADER ---
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setOpaque(false);
+        headerPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
         
         JLabel lblBack = new JLabel("← Retour");
         lblBack.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -41,179 +56,181 @@ public class ViewLogin extends JPanel {
         lblBack.setCursor(new Cursor(Cursor.HAND_CURSOR));
         lblBack.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent e) { frame.changerVue(ModernMainFrame.VUE_ACCUEIL); }
-            public void mouseEntered(MouseEvent e) { lblBack.setForeground(Theme.GRADIENT_START); }
+            public void mouseEntered(MouseEvent e) { lblBack.setForeground(Theme.PRIMARY); }
             public void mouseExited(MouseEvent e) { lblBack.setForeground(Theme.TEXT_BODY); }
         });
-        header.add(lblBack);
-        header.setAlignmentX(Component.LEFT_ALIGNMENT);
+        headerPanel.add(lblBack, BorderLayout.WEST);
 
-        // --- B. ICÔNE & TITRE ---
-        JLabel icon = new JLabel("🔐");
-        icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 50));
-        icon.setAlignmentX(Component.CENTER_ALIGNMENT);
+        // --- B. BRANDING ---
+        JPanel brandPanel = new JPanel();
+        brandPanel.setLayout(new BoxLayout(brandPanel, BoxLayout.Y_AXIS));
+        brandPanel.setOpaque(false);
+        brandPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel title = new JLabel("Espace " + userType);
-        title.setFont(Theme.FONT_TITLE);
-        title.setForeground(Theme.TEXT_HEADLINE);
-        title.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel subtitle = new JLabel("Veuillez vous identifier");
-        subtitle.setFont(Theme.FONT_REGULAR);
-        subtitle.setForeground(Theme.TEXT_BODY);
-        subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        // --- C. CHAMPS DE SAISIE ---
-        // Login
-        JLabel lblCin = UIFactory.createTitle("Identifiant (CIN/Email)");
-        lblCin.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        JTextField txtCin = UIFactory.createModernField();
-        txtCin.setMaximumSize(new Dimension(Integer.MAX_VALUE, 45));
+        JLabel lblLogo = new JLabel("AlloFix");
+        lblLogo.setFont(new Font("Segoe UI", Font.BOLD, 42)); 
+        lblLogo.setForeground(Theme.SIDEBAR_BG); 
+        lblLogo.setAlignmentX(Component.CENTER_ALIGNMENT);
         
-        // Mot de passe (On doit le styliser manuellement car UIFactory ne fait que JTextField)
-        JLabel lblMdp = UIFactory.createTitle("Mot de passe");
-        lblMdp.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        JPasswordField txtMdp = createModernPasswordField();
-        txtMdp.setMaximumSize(new Dimension(Integer.MAX_VALUE, 45));
+        JLabel lblSubtitle = new JLabel("Espace " + userType);
+        lblSubtitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        lblSubtitle.setForeground(Theme.PRIMARY); 
+        lblSubtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // --- D. BOUTON & ERREUR ---
-        JButton btnLogin = UIFactory.createGradientButton("Se connecter");
+        brandPanel.add(lblLogo);
+        brandPanel.add(Box.createVerticalStrut(10));
+        brandPanel.add(lblSubtitle);
+
+        // --- C. FORMULAIRE ---
+        txtCinField = UIFactory.createModernField();
+        JPanel pnlCin = createInputBlock("Identifiant (CIN)", txtCinField);
+        
+        txtMdpField = new JPasswordField();
+        stylePasswordField(txtMdpField);
+        JPanel pnlMdp = createInputBlock("Mot de passe", txtMdpField);
+
+        btnLogin = UIFactory.createGradientButton("Se connecter");
         btnLogin.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btnLogin.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50)); // Prend toute la largeur
+        btnLogin.setMaximumSize(new Dimension(Integer.MAX_VALUE, 45));
 
-        JLabel lblError = new JLabel(" ");
+        lblError = new JLabel(" ");
         lblError.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        lblError.setForeground(Theme.DANGER); // Rouge
+        lblError.setForeground(new Color(239, 68, 68)); // Rouge
         lblError.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        // --- LOGIQUE DE CONNEXION ---
-        btnLogin.addActionListener(e -> {
-            lblError.setText(" ");
-            String cin = txtCin.getText().trim();
-            String mdp = new String(txtMdp.getPassword());
-
-            if (cin.isEmpty() || mdp.isEmpty()) {
-                lblError.setText("Veuillez remplir tous les champs");
-                return;
-            }
-
-            // Animation visuelle
-            btnLogin.setEnabled(false);
-            btnLogin.setText("Connexion en cours...");
-
-            Timer t = new Timer(500, ev -> {
-                User u = metier.seConnecter(cin, mdp);
-                btnLogin.setEnabled(true);
-                btnLogin.setText("Se connecter");
-
-                if (u == null) {
-                    lblError.setText("Identifiants incorrects.");
-                    // Petit effet visuel : vider le mdp
-                    txtMdp.setText("");
-                    return;
-                }
-
-                // Redirection
-                frame.setCurrentUser(u);
-                if (userType.equals("Propriétaire") && u instanceof Proprietaire) {
-                    frame.changerVue(ModernMainFrame.VUE_DASHBOARD_PROPRIO);
-                } else if (userType.equals("Réparateur") && u instanceof Reparateur) {
-                    frame.changerVue(ModernMainFrame.VUE_DASHBOARD_REPARATEUR);
-                } else {
-                    lblError.setText("Rôle non autorisé.");
-                }
-            });
-            t.setRepeats(false);
-            t.start();
-        });
-
-        // Touche Entrée pour valider
-        txtMdp.addActionListener(e -> btnLogin.doClick());
-
-        // --- E. PIED DE CARTE (INSCRIPTION) ---
-        JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        footerPanel.setOpaque(false);
         
-        JLabel lblNoAccount = new JLabel("Pas de compte ? ");
-        lblNoAccount.setFont(Theme.FONT_REGULAR);
-        lblNoAccount.setForeground(Theme.TEXT_BODY);
-
-        JLabel lblSignup = new JLabel("Créer un compte");
-        lblSignup.setFont(Theme.FONT_BOLD);
-        lblSignup.setForeground(Theme.GRADIENT_START);
-        lblSignup.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        lblSignup.addMouseListener(new MouseAdapter() {
-            public void mouseClicked(MouseEvent e) { frame.changerVue(ModernMainFrame.VUE_REGISTER_PROPRIO); }
-            public void mouseEntered(MouseEvent e) { lblSignup.setText("<html><u>Créer un compte</u></html>"); }
-            public void mouseExited(MouseEvent e) { lblSignup.setText("Créer un compte"); }
-        });
-
-        footerPanel.add(lblNoAccount);
-        footerPanel.add(lblSignup);
-
-        // --- ASSEMBLAGE FINAL DANS LA CARTE ---
-        // On utilise Box.createVerticalStrut(x) pour gérer l'espacement vertical (Margin)
-        
-        card.add(header);
-        card.add(Box.createVerticalStrut(20));
-        
-        card.add(icon);
-        card.add(Box.createVerticalStrut(10));
-        card.add(title);
-        card.add(Box.createVerticalStrut(5));
-        card.add(subtitle);
+        // --- ASSEMBLAGE ---
+        card.add(headerPanel);
         card.add(Box.createVerticalStrut(30));
-
-        card.add(lblCin);
-        card.add(Box.createVerticalStrut(5));
-        card.add(txtCin);
+        card.add(brandPanel);
+        card.add(Box.createVerticalStrut(40));
+        card.add(pnlCin);
         card.add(Box.createVerticalStrut(15));
-
-        card.add(lblMdp);
-        card.add(Box.createVerticalStrut(5));
-        card.add(txtMdp);
+        card.add(pnlMdp);
         card.add(Box.createVerticalStrut(30));
-
         card.add(btnLogin);
         card.add(Box.createVerticalStrut(10));
         card.add(lblError);
-        
-        card.add(Box.createVerticalGlue()); // Pousse le footer vers le bas si besoin
-        card.add(footerPanel);
+        card.add(Box.createVerticalGlue()); 
+
+        // --- FOOTER CONDITIONNEL ---
+        if (userType.equals("Propriétaire")) {
+            JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            footerPanel.setOpaque(false);
+            footerPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+            
+            JLabel lblNoAccount = new JLabel("Pas de compte ? ");
+            lblNoAccount.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+            lblNoAccount.setForeground(Theme.TEXT_BODY);
+
+            JLabel lblSignup = new JLabel("S'inscrire");
+            lblSignup.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            lblSignup.setForeground(Theme.PRIMARY);
+            lblSignup.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            lblSignup.addMouseListener(new MouseAdapter() {
+                public void mouseClicked(MouseEvent e) { frame.changerVue(ModernMainFrame.VUE_REGISTER_PROPRIO); }
+                public void mouseEntered(MouseEvent e) { lblSignup.setText("<html><u>S'inscrire</u></html>"); }
+                public void mouseExited(MouseEvent e) { lblSignup.setText("S'inscrire"); }
+            });
+
+            footerPanel.add(lblNoAccount);
+            footerPanel.add(lblSignup);
+            card.add(footerPanel);
+        } else {
+            card.add(Box.createVerticalStrut(10));
+        }
+
+        // --- LOGIQUE DE CONNEXION ---
+        ActionListener loginAction = e -> {
+             String cin = txtCinField.getText().trim();
+             String mdp = new String(txtMdpField.getPassword());
+             
+             lblError.setText(" ");
+
+             if(cin.isEmpty() || mdp.isEmpty()) { 
+                 lblError.setText("Veuillez remplir tous les champs"); 
+                 return; 
+             }
+             
+             btnLogin.setEnabled(false);
+             btnLogin.setText("Connexion...");
+             setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+             
+             Timer t = new Timer(600, ev -> {
+                 User u = metier.seConnecter(cin, mdp);
+                 
+                 btnLogin.setEnabled(true);
+                 btnLogin.setText("Se connecter");
+                 setCursor(Cursor.getDefaultCursor());
+                 
+                 if(u != null) {
+                     frame.setCurrentUser(u);
+                     
+                     if(u instanceof Proprietaire && userType.equals("Propriétaire")) {
+                         frame.changerVue(ModernMainFrame.VUE_DASHBOARD_PROPRIO);
+                     } 
+                     else if(u instanceof Reparateur && userType.equals("Réparateur")) {
+                         // 🔥 C'EST ICI LA CORRECTION : On redirige vers l'ATELIER
+                         frame.changerVue(ModernMainFrame.VUE_REPARATEUR_ATELIER);
+                     } 
+                     else {
+                         lblError.setText("Compte non autorisé ici");
+                         frame.setCurrentUser(null);
+                     }
+                 } else {
+                     lblError.setText("Identifiants incorrects");
+                     txtMdpField.setText("");
+                 }
+             });
+             
+             t.setRepeats(false); 
+             t.start();
+        };
+
+        btnLogin.addActionListener(loginAction);
+        txtMdpField.addActionListener(loginAction);
 
         add(card);
     }
 
-    /**
-     * Méthode utilitaire locale pour styliser le PasswordField
-     * (Car UIFactory ne retourne que des JTextField pour l'instant)
-     */
-    private JPasswordField createModernPasswordField() {
-        JPasswordField field = new JPasswordField();
-        field.setFont(Theme.FONT_REGULAR);
-        field.setForeground(Theme.TEXT_HEADLINE);
-        field.setCaretColor(Theme.GRADIENT_START);
-        
-        // Bordure composée : Ligne grise + Padding
-        field.setBorder(BorderFactory.createCompoundBorder(
-            new LineBorder(new Color(226, 232, 240), 1, true),
-            new EmptyBorder(10, 15, 10, 15)
-        ));
+    private JPanel createInputBlock(String label, JComponent field) {
+        JPanel p = new JPanel();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        p.setOpaque(false);
+        p.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel l = new JLabel(label);
+        l.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        l.setForeground(Theme.TEXT_HEADLINE);
+        l.setAlignmentX(Component.LEFT_ALIGNMENT);
+        ((JComponent)field).setAlignmentX(Component.LEFT_ALIGNMENT);
+        field.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        p.add(l);
+        p.add(Box.createVerticalStrut(5));
+        p.add(field);
+        return p;
+    }
 
-        // Focus Effect
+    private void stylePasswordField(JPasswordField field) {
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        field.setForeground(Theme.TEXT_HEADLINE);
+        field.setCaretColor(Theme.PRIMARY);
+        field.setBackground(Color.WHITE);
+        field.setBorder(BorderFactory.createCompoundBorder(
+            new LineBorder(new Color(203, 213, 225), 1, true),
+            new EmptyBorder(8, 12, 8, 12)
+        ));
         field.addFocusListener(new FocusAdapter() {
             public void focusGained(FocusEvent evt) {
                 field.setBorder(BorderFactory.createCompoundBorder(
-                    new LineBorder(Theme.GRADIENT_START, 2, true),
-                    new EmptyBorder(9, 14, 9, 14)
+                    new LineBorder(Theme.PRIMARY, 2, true),
+                    new EmptyBorder(7, 11, 7, 11)
                 ));
             }
             public void focusLost(FocusEvent evt) {
                 field.setBorder(BorderFactory.createCompoundBorder(
-                    new LineBorder(new Color(226, 232, 240), 1, true),
-                    new EmptyBorder(10, 15, 10, 15)
+                    new LineBorder(new Color(203, 213, 225), 1, true),
+                    new EmptyBorder(8, 12, 8, 12)
                 ));
             }
         });
-        return field;
     }
 }

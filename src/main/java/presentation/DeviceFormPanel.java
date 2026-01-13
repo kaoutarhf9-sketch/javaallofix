@@ -1,6 +1,7 @@
 package presentation;
 
 import dao.*;
+import metier.EtatReparation; // ✅ Import de l'Enum
 
 import javax.swing.*;
 import java.awt.*;
@@ -101,9 +102,6 @@ public class DeviceFormPanel extends JPanel {
         txtReste.setEditable(false);
         add(txtReste, gbc);
 
-        // ❌ PLUS DE BOUTON SAVE ICI
-        // Le bouton sera unique dans le panel parent (ReparationPanel)
-
         // ===== LISTENERS =====
         cbType.addActionListener(e -> toggleAutreType());
         cbMarque.addActionListener(e -> toggleAutreMarque());
@@ -161,6 +159,7 @@ public class DeviceFormPanel extends JPanel {
                 .avance(avance)
                 .reste(prix - avance)
                 .dateDepot(LocalDate.now()) // ✅ Date du jour
+                .etat(EtatReparation.EN_ATTENTE) // ✅ AJOUT CRUCIAL : Statut par défaut
                 .device(device)
                 .build();
     }

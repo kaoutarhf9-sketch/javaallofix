@@ -3,38 +3,25 @@ package presentation;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
-import javax.swing.border.CompoundBorder;
+import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
 
-import dao.User; 
+import dao.User;
 import dao.Proprietaire;
 
 public class ClientMainFrame extends JFrame {
 
-    // --- DONNÉES DE SESSION ---
-    private User currentUser; // Si null = Visiteur, sinon = Connecté
+    private User currentUser; 
 
-    // --- COULEURS & THEME ---
-    public static class Theme {
-        public static final Color BACKGROUND = new Color(248, 250, 252); // Slate 50
-        public static final Color TEXT_HEADLINE = new Color(15, 23, 42); // Slate 900
-        public static final Color TEXT_BODY = new Color(100, 116, 139);  // Slate 500
-        public static final Color PRIMARY = new Color(79, 70, 229);      // Indigo 600
-        public static final Color GRADIENT_START = new Color(79, 70, 229);
-        public static final Color GRADIENT_END = new Color(168, 85, 247); // Purple 500
-        public static final Font FONT_HERO = new Font("Segoe UI", Font.BOLD, 48);
-        public static final Font FONT_BOLD = new Font("Segoe UI", Font.BOLD, 14);
-    }
-
-    // --- CONSTRUCTEUR ---
     public ClientMainFrame(User user) {
         this.currentUser = user;
 
-        setTitle("AlloFix | Réparation d'Appareils & Expertise");
-        setSize(1280, 950);
+        setTitle("AlloFix | Accueil Client");
+        setSize(1280, 900);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        getContentPane().setBackground(Theme.BACKGROUND);
+        getContentPane().setBackground(Theme.BACKGROUND); 
         setLayout(new BorderLayout());
 
         // 1. NAVBAR
@@ -49,70 +36,105 @@ public class ClientMainFrame extends JFrame {
         scroll.setBorder(null);
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.getVerticalScrollBar().setUnitIncrement(20);
+        
         add(scroll, BorderLayout.CENTER);
     }
 
     // ========================================================================================
-    // NAVBAR : NAVIGATION VERS MODERNMAINFRAME
+    // 1. NAVBAR AVEC CHARGEMENT ASYNCHRONE
     // ========================================================================================
     private JPanel createNavbar() {
         JPanel nav = new JPanel(new BorderLayout());
-        nav.setBackground(Color.WHITE);
-        nav.setPreferredSize(new Dimension(1000, 80));
-        nav.setBorder(new CompoundBorder(
-            BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(241, 245, 249)),
-            new EmptyBorder(0, 50, 0, 50)
-        ));
+        nav.setBackground(Theme.BACKGROUND);
+        nav.setPreferredSize(new Dimension(1000, 90));
+        nav.setBorder(new EmptyBorder(20, 50, 20, 50));
 
-        // LOGO
-        JLabel logo = new JLabel("⚡ AlloFix");
+        // --- LOGO TEXTE SIMPLE ---
+        JLabel logo = new JLabel("AlloFix");
         logo.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        logo.setForeground(Theme.GRADIENT_START);
+        logo.setForeground(Theme.SIDEBAR_BG); 
         nav.add(logo, BorderLayout.WEST);
 
-        // BOUTONS
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 20));
+        // --- BOUTONS ---
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 5));
         actions.setOpaque(false);
 
         if (this.currentUser == null) {
-            // --- SCÉNARIO 1 : VISITEUR ---
-            // Le bouton redirige vers l'application principale (ModernMainFrame) pour se connecter
-            JButton btnLogin = createNavButton("Espace Pro / Connexion", false);
-            btnLogin.addActionListener(e -> {
-                this.dispose(); // Ferme cette fenêtre
-                new ModernMainFrame().setVisible(true); // Ouvre l'app Pro
-            });
-            actions.add(btnLogin);
-
-        } else {
-            // --- SCÉNARIO 2 : DÉJÀ CONNECTÉ ---
             
-            // Bouton Dashboard : Ouvre ModernMainFrame et restaure la session
-            JButton btnDash = createNavButton("Accéder à mon Espace", true);
+            // BOUTON PRINCIPAL : ESPACE PRO / CONNEXION
+            JButton btnPro = createNavButton("Espace Pro / Connexion", true); 
+            
+            btnPro.addActionListener(e -> {
+                // 1. FEEDBACK VISUEL IMMÉDIAT
+                setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+                btnPro.setText("Chargement...");
+                btnPro.setEnabled(false); // On bloque le bouton pour éviter le spam
+
+                // 2. CHARGEMENT EN ARRIÈRE-PLAN (SwingWorker)
+                // Cela empêche l'écran de devenir blanc/figé pendant la connexion BDD
+                new SwingWorker<ModernMainFrame, Void>() {
+                    @Override
+                    protected ModernMainFrame doInBackground() throws Exception {
+                        // C'est ici que le "lourd" travail se fait
+                        return new ModernMainFrame(); 
+                    }
+
+                    @Override
+                    protected void done() {
+                        try {
+                            // 3. AFFICHAGE UNE FOIS PRÊT
+                            ModernMainFrame frame = get();
+                            frame.setVisible(true);
+                            
+                            // 4. FERMETURE PROPRE DE L'ANCIENNE FENÊTRE
+                            dispose(); 
+                        } catch (Exception ex) {
+                            // En cas d'erreur, on remet le bouton normal
+                            setCursor(Cursor.getDefaultCursor());
+                            btnPro.setText("Espace Pro / Connexion");
+                            btnPro.setEnabled(true);
+                            JOptionPane.showMessageDialog(null, "Erreur de chargement : " + ex.getMessage());
+                        }
+                    }
+                }.execute();
+            });
+            
+            actions.add(btnPro);
+            
+        } else {
+            // MODE DÉJÀ CONNECTÉ
+            JButton btnDash = createNavButton("Retour à mon Espace", true);
+            
             btnDash.addActionListener(e -> {
-                this.dispose();
-                ModernMainFrame frame = new ModernMainFrame();
+                // Ici aussi on met un petit worker pour la fluidité si la BDD est lente
+                setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+                btnDash.setText("Ouverture...");
                 
-                // On passe l'utilisateur et on redirige vers le bon dashboard
-                frame.setCurrentUser(this.currentUser);
-                if (currentUser instanceof Proprietaire) {
-                    frame.changerVue(ModernMainFrame.VUE_DASHBOARD_PROPRIO);
-                } else {
-                    frame.changerVue(ModernMainFrame.VUE_DASHBOARD_REPARATEUR);
-                }
-                frame.setVisible(true);
+                new SwingWorker<ModernMainFrame, Void>() {
+                    @Override
+                    protected ModernMainFrame doInBackground() {
+                        ModernMainFrame frame = new ModernMainFrame();
+                        frame.setCurrentUser(currentUser);
+                        
+                        // Redirection directe vers la bonne vue
+                        if (currentUser instanceof Proprietaire) {
+                            frame.changerVue(ModernMainFrame.VUE_DASHBOARD_PROPRIO);
+                        } else {
+                            frame.changerVue(ModernMainFrame.VUE_REPARATEUR_ATELIER);
+                        }
+                        return frame;
+                    }
+
+                    @Override
+                    protected void done() {
+                        try {
+                            get().setVisible(true);
+                            dispose();
+                        } catch(Exception ex) { ex.printStackTrace(); }
+                    }
+                }.execute();
             });
             actions.add(btnDash);
-
-            // Bouton Déconnexion
-            JButton btnLogout = createNavButton("Déconnexion", false);
-            btnLogout.setForeground(new Color(239, 68, 68));
-            btnLogout.setBorder(BorderFactory.createLineBorder(new Color(254, 202, 202)));
-            btnLogout.addActionListener(e -> {
-                this.dispose();
-                new ClientMainFrame(null).setVisible(true); // Recharge en mode visiteur
-            });
-            actions.add(btnLogout);
         }
 
         nav.add(actions, BorderLayout.EAST);
@@ -120,123 +142,143 @@ public class ClientMainFrame extends JFrame {
     }
 
     // ========================================================================================
-    // HERO SECTION
+    // 2. HERO SECTION
     // ========================================================================================
     private JPanel createHeroSection() {
         JPanel container = new JPanel(new GridBagLayout());
         container.setBackground(Theme.BACKGROUND);
+        
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0; gbc.anchor = GridBagConstraints.CENTER;
+        gbc.gridx = 0; 
+        gbc.anchor = GridBagConstraints.CENTER;
 
         // Espace Haut
-        gbc.gridy = 0; container.add(Box.createVerticalStrut(60), gbc);
+        gbc.gridy = 0; container.add(Box.createVerticalStrut(80), gbc);
 
         // Titre
-        JLabel title = new JLabel("La réparation, réinventée.");
-        title.setFont(Theme.FONT_HERO);
+        JLabel title = new JLabel("Réparer vos appareils, sans stress.");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 42));
         title.setForeground(Theme.TEXT_HEADLINE);
         gbc.gridy++; gbc.insets = new Insets(0, 0, 15, 0);
         container.add(title, gbc);
 
         // Sous-titre
-        JLabel subtitle = new JLabel("Trouvez un expert certifié près de chez vous en quelques clics.");
-        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 20));
+        JLabel subtitle = new JLabel("Trouvez le meilleur expert certifié près de chez vous.");
+        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 18));
         subtitle.setForeground(Theme.TEXT_BODY);
-        gbc.gridy++; gbc.insets = new Insets(0, 0, 50, 0);
-        container.add(subtitle, gbc);
-
-        // Barre de recherche
-        JPanel searchBar = createMagicSearchBar();
         gbc.gridy++; gbc.insets = new Insets(0, 0, 60, 0);
+        container.add(subtitle, gbc);
+        
+        // Barre de recherche
+        JPanel searchBar = createFloatingSearchBar();
+        gbc.gridy++; gbc.insets = new Insets(0, 0, 80, 0);
         container.add(searchBar, gbc);
 
-        // Catégories
+        // Cartes Catégories (Simple texte)
         JPanel grid = new JPanel(new GridLayout(1, 4, 20, 0));
         grid.setOpaque(false);
-        grid.add(createCategoryCard("Smartphone", "📱"));
-        grid.add(createCategoryCard("Ordinateur", "💻"));
-        grid.add(createCategoryCard("Console", "🎮"));
-        grid.add(createCategoryCard("Maison", "🏠"));
         
-        gbc.gridy++; gbc.insets = new Insets(0, 0, 80, 0);
+        grid.add(createSimpleCategoryCard("Smartphone"));
+        grid.add(createSimpleCategoryCard("Ordinateur"));
+        grid.add(createSimpleCategoryCard("Tablette"));
+        grid.add(createSimpleCategoryCard("Console"));
+        
+        gbc.gridy++; gbc.insets = new Insets(0, 0, 100, 0);
         container.add(grid, gbc);
 
         return container;
     }
 
-    // --- COMPOSANTS UI ---
+    // ========================================================================================
+    // COMPOSANTS UI
+    // ========================================================================================
 
-    private JPanel createMagicSearchBar() {
-        JPanel p = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(0, 0, getWidth()-5, getHeight()-5, 60, 60);
-                g2.setColor(new Color(0,0,0,10));
-                g2.drawRoundRect(0, 0, getWidth()-5, getHeight()-5, 60, 60);
-                g2.dispose();
-            }
-        };
-        p.setOpaque(false);
-        p.setPreferredSize(new Dimension(750, 75));
-        p.setBorder(new EmptyBorder(10, 30, 15, 10));
+    private JPanel createFloatingSearchBar() {
+        JPanel p = new JPanel(new BorderLayout());
+        p.setBackground(Color.WHITE);
+        p.setPreferredSize(new Dimension(700, 60));
+        p.setBorder(BorderFactory.createCompoundBorder(
+            new LineBorder(new Color(226, 232, 240), 1, true),
+            new EmptyBorder(5, 20, 5, 5)
+        ));
 
-        JTextField field = new JTextField("Quel appareil souhaitez-vous réparer ?");
+        JTextField field = new JTextField();
+        field.setText("Rechercher un modèle, une panne...");
         field.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        field.setForeground(Color.GRAY);
         field.setBorder(null);
         field.setOpaque(false);
-        field.setForeground(Theme.TEXT_BODY);
         
         field.addFocusListener(new FocusAdapter() {
             public void focusGained(FocusEvent e) {
-                if (field.getText().startsWith("Quel")) field.setText("");
+                if(field.getText().startsWith("Rechercher")) {
+                    field.setText("");
+                    field.setForeground(Theme.TEXT_HEADLINE);
+                }
+            }
+            public void focusLost(FocusEvent e) {
+                if(field.getText().isEmpty()) {
+                    field.setText("Rechercher un modèle, une panne...");
+                    field.setForeground(Color.GRAY);
+                }
             }
         });
 
-        JButton btnSearch = new GradientButton("Rechercher");
-        btnSearch.setPreferredSize(new Dimension(180, 50));
+        JButton btnSearch = new JButton("Trouver");
+        btnSearch.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        btnSearch.setForeground(Color.WHITE);
+        btnSearch.setBackground(Theme.PRIMARY);
+        btnSearch.setBorder(new EmptyBorder(0, 30, 0, 30));
+        btnSearch.setFocusPainted(false);
+        btnSearch.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnSearch.addActionListener(e -> JOptionPane.showMessageDialog(this, "Module de recherche publique bientôt disponible"));
 
         p.add(field, BorderLayout.CENTER);
         p.add(btnSearch, BorderLayout.EAST);
+        
         return p;
     }
 
-    private JPanel createCategoryCard(String title, String icon) {
-        JPanel card = new JPanel() {
-            private boolean hover = false;
-            {
-                addMouseListener(new MouseAdapter() {
-                    public void mouseEntered(MouseEvent e) { hover = true; repaint(); setCursor(new Cursor(Cursor.HAND_CURSOR)); }
-                    public void mouseExited(MouseEvent e) { hover = false; repaint(); setCursor(new Cursor(Cursor.DEFAULT_CURSOR)); }
-                });
-            }
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int yOff = hover ? -5 : 0;
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(0, 5 + yOff, getWidth(), getHeight()-10, 25, 25);
-                if(hover) {
-                    g2.setColor(Theme.PRIMARY);
-                    g2.setStroke(new BasicStroke(2));
-                    g2.drawRoundRect(0, 5 + yOff, getWidth()-1, getHeight()-11, 25, 25);
-                }
-                g2.dispose();
-            }
-        };
-        card.setOpaque(false);
-        card.setPreferredSize(new Dimension(160, 160));
-        card.setLayout(new GridBagLayout());
+    private JPanel createSimpleCategoryCard(String title) {
+        JPanel card = new JPanel(new GridBagLayout());
+        card.setBackground(Color.WHITE);
+        card.setPreferredSize(new Dimension(160, 80));
         
-        JLabel lIcon = new JLabel(icon); lIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 40));
-        JLabel lTitle = new JLabel(title); lTitle.setFont(Theme.FONT_BOLD); lTitle.setForeground(Theme.TEXT_HEADLINE);
+        Border defaultBorder = BorderFactory.createCompoundBorder(
+            new LineBorder(new Color(226, 232, 240), 1, true),
+            new EmptyBorder(10, 10, 10, 10)
+        );
         
-        GridBagConstraints g = new GridBagConstraints();
-        g.gridx=0; g.gridy=0; g.insets = new Insets(0,0,10,0); card.add(lIcon, g);
-        g.gridy=1; g.insets = new Insets(0,0,0,0); card.add(lTitle, g);
+        Border hoverBorder = BorderFactory.createCompoundBorder(
+            new LineBorder(Theme.PRIMARY, 2, true),
+            new EmptyBorder(9, 9, 9, 9)
+        );
+        
+        card.setBorder(defaultBorder);
+        
+        JLabel lTitle = new JLabel(title);
+        lTitle.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        lTitle.setForeground(Theme.TEXT_HEADLINE);
+        
+        card.add(lTitle);
+
+        card.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                card.setBorder(hoverBorder);
+                card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                card.setBackground(new Color(250, 252, 255));
+                lTitle.setForeground(Theme.PRIMARY);
+            }
+            public void mouseExited(MouseEvent e) {
+                card.setBorder(defaultBorder);
+                card.setBackground(Color.WHITE);
+                lTitle.setForeground(Theme.TEXT_HEADLINE);
+            }
+            public void mouseClicked(MouseEvent e) {
+                 JOptionPane.showMessageDialog(null, "Filtre : " + title);
+            }
+        });
+
         return card;
     }
 
@@ -249,34 +291,28 @@ public class ClientMainFrame extends JFrame {
         if (primary) {
             btn.setBackground(Theme.PRIMARY);
             btn.setForeground(Color.WHITE);
-            btn.setBorder(new EmptyBorder(8, 20, 8, 20));
-            btn.setContentAreaFilled(true);
-        } else {
-            btn.setForeground(Theme.TEXT_BODY);
+            btn.setBorder(new EmptyBorder(10, 25, 10, 25));
             btn.setContentAreaFilled(false);
-            btn.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240), 1));
-            btn.setPreferredSize(new Dimension(200, 40));
+            btn.setOpaque(true); 
+        } else {
+            btn.setBackground(Theme.BACKGROUND);
+            btn.setForeground(Theme.TEXT_HEADLINE);
+            btn.setBorder(new LineBorder(new Color(203, 213, 225), 1)); 
+            btn.setContentAreaFilled(false);
         }
+        
+        btn.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                if(primary) btn.setBackground(Theme.PRIMARY.darker());
+                else btn.setBorder(new LineBorder(Theme.PRIMARY, 1));
+            }
+            public void mouseExited(MouseEvent e) {
+                if(primary) btn.setBackground(Theme.PRIMARY);
+                else btn.setBorder(new LineBorder(new Color(203, 213, 225), 1));
+            }
+        });
+        
         return btn;
-    }
-
-    class GradientButton extends JButton {
-        public GradientButton(String text) {
-            super(text);
-            setContentAreaFilled(false); setFocusPainted(false); setBorderPainted(false);
-            setForeground(Color.WHITE); setFont(Theme.FONT_BOLD);
-            setCursor(new Cursor(Cursor.HAND_CURSOR));
-        }
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            GradientPaint gp = new GradientPaint(0, 0, Theme.GRADIENT_START, getWidth(), 0, Theme.GRADIENT_END);
-            g2.setPaint(gp);
-            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 40, 40);
-            super.paintComponent(g);
-            g2.dispose();
-        }
     }
 
     public static void main(String[] args) {

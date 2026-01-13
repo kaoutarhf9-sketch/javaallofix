@@ -6,6 +6,8 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 
 import dao.User;
+import dao.Proprietaire;
+import dao.Reparateur;
 import metier.GestionUser;
 import metier.IGestionUser;
 
@@ -15,20 +17,24 @@ public class ViewProfile extends JPanel {
     private IGestionUser metier;
 
     // Champs
-    private JTextField txtNom, txtPrenom, txtEmail, txtTel;
-    private JTextField txtCin; 
+    private JTextField txtNom, txtPrenom, txtEmail, txtTel, txtCin;
     private JPasswordField txtMdp;
     private JButton btnSave;
+    
+    // Identité
+    private JLabel lblInitials;
+    private JLabel lblRole;
+    private JPanel avatarCircle;
 
     public ViewProfile(ModernMainFrame frame) {
         this.frame = frame;
-        this.metier = new GestionUser(); 
+        this.metier = new GestionUser();
 
-        // 1. FOND GÉNÉRAL
-        setLayout(new GridBagLayout()); 
-        setBackground(Theme.BACKGROUND); 
+        // 1. CONFIGURATION
+        setLayout(new GridBagLayout()); // Pour centrer la carte au milieu de l'écran
+        setBackground(Theme.BACKGROUND);
 
-        // 2. LA CARTE HORIZONTALE
+        // 2. LA CARTE HORIZONTALE (Large)
         add(createHorizontalCard());
 
         // 3. CHARGEMENT
@@ -38,57 +44,77 @@ public class ViewProfile extends JPanel {
     private JPanel createHorizontalCard() {
         JPanel card = new JPanel(new GridBagLayout());
         card.setBackground(Color.WHITE);
-        // Bordure grise et ombre simulée par les marges
+        card.setPreferredSize(new Dimension(850, 450)); // Format rectangulaire large
+        
+        // Bordure fine + Ombre légère (via padding externe si besoin, ici simple bordure propre)
         card.setBorder(BorderFactory.createCompoundBorder(
-            new LineBorder(new Color(230, 230, 230), 1, true),
+            new LineBorder(new Color(226, 232, 240), 1, true),
             new EmptyBorder(30, 40, 30, 40)
         ));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        
+
         // =========================================================
-        // PARTIE GAUCHE : IDENTITÉ (Icône + Titre)
+        // PARTIE GAUCHE : IDENTITÉ VISUELLE
         // =========================================================
         JPanel leftPanel = new JPanel();
         leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
         leftPanel.setBackground(Color.WHITE);
         leftPanel.setOpaque(false);
+        leftPanel.setPreferredSize(new Dimension(200, 300));
 
-        JLabel icon = new JLabel("👤");
-        icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 80)); // Icône plus grande
-        icon.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel title = new JLabel("Mon Profil");
-        title.setFont(Theme.FONT_TITLE);
-        title.setForeground(Theme.PRIMARY);
-        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+        // Cercle Avatar
+        avatarCircle = new JPanel(new GridBagLayout());
+        avatarCircle.setPreferredSize(new Dimension(100, 100));
+        avatarCircle.setMaximumSize(new Dimension(100, 100));
+        avatarCircle.setBackground(Theme.SIDEBAR_BG); // Bleu nuit par défaut
+        avatarCircle.setAlignmentX(Component.CENTER_ALIGNMENT);
         
-        JLabel subtitle = new JLabel("Propriétaire");
-        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        subtitle.setForeground(Color.GRAY);
-        subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        // Astuce : On arrondira visuellement via un Panel rond si on voulait, 
+        // ici on garde un carré couleur ou on peut utiliser un border radius sur le panel.
+        // Pour faire simple et propre :
+        
+        lblInitials = new JLabel("XX");
+        lblInitials.setFont(new Font("Segoe UI", Font.BOLD, 36));
+        lblInitials.setForeground(Color.WHITE);
+        avatarCircle.add(lblInitials);
 
-        leftPanel.add(icon);
-        leftPanel.add(Box.createVerticalStrut(10));
-        leftPanel.add(title);
-        leftPanel.add(subtitle);
+        JLabel lblTitle = new JLabel("Mon Profil");
+        lblTitle.setFont(Theme.FONT_TITLE);
+        lblTitle.setForeground(Theme.TEXT_HEADLINE);
+        lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        lblRole = new JLabel("Propriétaire");
+        lblRole.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblRole.setForeground(Theme.PRIMARY);
+        lblRole.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        // Assemblage Gauche
+        leftPanel.add(Box.createVerticalGlue());
+        leftPanel.add(avatarCircle);
+        leftPanel.add(Box.createVerticalStrut(20));
+        leftPanel.add(lblTitle);
+        leftPanel.add(Box.createVerticalStrut(5));
+        leftPanel.add(lblRole);
+        leftPanel.add(Box.createVerticalGlue());
 
         // Placement Gauche
         gbc.gridx = 0; gbc.gridy = 0;
+        gbc.weighty = 1.0;
         gbc.anchor = GridBagConstraints.CENTER;
-        gbc.insets = new Insets(0, 0, 0, 30); // Marge à droite pour ne pas coller la ligne
+        gbc.insets = new Insets(0, 0, 0, 40); // Espace à droite
         card.add(leftPanel, gbc);
 
         // =========================================================
         // SÉPARATEUR VERTICAL
         // =========================================================
         JSeparator sep = new JSeparator(JSeparator.VERTICAL);
-        sep.setPreferredSize(new Dimension(1, 250)); // Hauteur forcée
-        sep.setForeground(new Color(230, 230, 230));
+        sep.setPreferredSize(new Dimension(1, 300));
+        sep.setForeground(new Color(226, 232, 240)); // Gris très clair
         
         gbc.gridx = 1; 
         gbc.fill = GridBagConstraints.VERTICAL;
-        gbc.insets = new Insets(0, 0, 0, 30); // Marge à droite
+        gbc.insets = new Insets(0, 0, 0, 40); // Espace à droite
         card.add(sep, gbc);
 
         // =========================================================
@@ -98,38 +124,43 @@ public class ViewProfile extends JPanel {
         rightPanel.setOpaque(false);
         
         GridBagConstraints gbcForm = new GridBagConstraints();
-        gbcForm.insets = new Insets(5, 10, 15, 10);
+        gbcForm.insets = new Insets(0, 10, 20, 10);
         gbcForm.fill = GridBagConstraints.HORIZONTAL;
         gbcForm.weightx = 1.0;
 
-        // --- Init Champs ---
-        txtNom = createStyledField(true);
-        txtPrenom = createStyledField(true);
-        txtEmail = createStyledField(true);
-        txtTel = createStyledField(true);
-        txtCin = createStyledField(false); // Lecture seule
-        txtMdp = createStyledPasswordField();
+        // Init Champs (UIFactory pour le look moderne)
+        txtNom = UIFactory.createModernField();
+        txtPrenom = UIFactory.createModernField();
+        txtEmail = UIFactory.createModernField();
+        txtTel = UIFactory.createModernField();
+        
+        txtCin = UIFactory.createModernField();
+        txtCin.setEditable(false);
+        txtCin.setBackground(new Color(248, 250, 252));
+        txtCin.setForeground(Color.GRAY);
+        
+        txtMdp = UIFactory.createModernPasswordField();
 
         // Ligne 1
         gbcForm.gridy = 0;
-        gbcForm.gridx = 0; rightPanel.add(createFieldBlock("Nom", txtNom), gbcForm);
-        gbcForm.gridx = 1; rightPanel.add(createFieldBlock("Prénom", txtPrenom), gbcForm);
+        gbcForm.gridx = 0; rightPanel.add(createInputBlock("Nom", txtNom), gbcForm);
+        gbcForm.gridx = 1; rightPanel.add(createInputBlock("Prénom", txtPrenom), gbcForm);
 
         // Ligne 2
-        gbcForm.gridy++;
-        gbcForm.gridx = 0; rightPanel.add(createFieldBlock("Email", txtEmail), gbcForm);
-        gbcForm.gridx = 1; rightPanel.add(createFieldBlock("Téléphone", txtTel), gbcForm);
+        gbcForm.gridy = 1;
+        gbcForm.gridx = 0; rightPanel.add(createInputBlock("Email", txtEmail), gbcForm);
+        gbcForm.gridx = 1; rightPanel.add(createInputBlock("Téléphone", txtTel), gbcForm);
 
         // Ligne 3
-        gbcForm.gridy++;
-        gbcForm.gridx = 0; rightPanel.add(createFieldBlock("CIN (Fixe)", txtCin), gbcForm);
-        gbcForm.gridx = 1; rightPanel.add(createFieldBlock("Mot de passe", txtMdp), gbcForm);
+        gbcForm.gridy = 2;
+        gbcForm.gridx = 0; rightPanel.add(createInputBlock("CIN (Fixe)", txtCin), gbcForm);
+        gbcForm.gridx = 1; rightPanel.add(createInputBlock("Mot de passe", txtMdp), gbcForm);
 
-        // Bouton (Pleine largeur sur le panneau de droite)
-        gbcForm.gridy++;
+        // Bouton Sauvegarder (Pleine largeur en bas)
+        gbcForm.gridy = 3;
         gbcForm.gridx = 0; 
         gbcForm.gridwidth = 2;
-        gbcForm.insets = new Insets(20, 10, 0, 10);
+        gbcForm.insets = new Insets(10, 10, 0, 10);
         
         btnSave = UIFactory.createGradientButton("Enregistrer les modifications");
         btnSave.setPreferredSize(new Dimension(0, 45));
@@ -139,51 +170,26 @@ public class ViewProfile extends JPanel {
 
         // Placement Droite
         gbc.gridx = 2; 
-        gbc.fill = GridBagConstraints.BOTH; // Remplir l'espace
+        gbc.weightx = 1.0; // Prend tout le reste de la largeur
+        gbc.fill = GridBagConstraints.BOTH;
         gbc.insets = new Insets(0, 0, 0, 0);
         card.add(rightPanel, gbc);
 
         return card;
     }
 
-    // --- HELPERS (Style identique) ---
-    private JPanel createFieldBlock(String labelText, JComponent field) {
-        JPanel p = new JPanel(new BorderLayout(0, 8));
+    // --- HELPER : BLOC LABEL + INPUT ---
+    private JPanel createInputBlock(String label, JComponent field) {
+        JPanel p = new JPanel(new BorderLayout(0, 6));
         p.setOpaque(false);
-        JLabel l = new JLabel(labelText);
+        JLabel l = new JLabel(label);
         l.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        l.setForeground(Theme.TEXT_BODY);
+        l.setForeground(Theme.TEXT_HEADLINE);
+        // On force une hauteur standard
+        field.setPreferredSize(new Dimension(0, 38));
         p.add(l, BorderLayout.NORTH);
         p.add(field, BorderLayout.CENTER);
         return p;
-    }
-
-    private JTextField createStyledField(boolean editable) {
-        JTextField f = new JTextField(15);
-        f.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        f.setBorder(BorderFactory.createCompoundBorder(
-            new LineBorder(new Color(200, 200, 200), 1, true),
-            new EmptyBorder(8, 10, 8, 10)
-        ));
-        if (!editable) {
-            f.setEditable(false);
-            f.setBackground(new Color(240, 240, 240));
-            f.setForeground(Color.GRAY);
-        } else {
-            f.setBackground(new Color(250, 252, 255));
-        }
-        return f;
-    }
-    
-    private JPasswordField createStyledPasswordField() {
-        JPasswordField f = new JPasswordField(15);
-        f.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        f.setBackground(new Color(250, 252, 255));
-        f.setBorder(BorderFactory.createCompoundBorder(
-            new LineBorder(new Color(200, 200, 200), 1, true),
-            new EmptyBorder(8, 10, 8, 10)
-        ));
-        return f;
     }
 
     // --- LOGIQUE MÉTIER ---
@@ -196,6 +202,23 @@ public class ViewProfile extends JPanel {
             txtTel.setText(u.getNumtel());
             txtCin.setText(u.getCin());
             txtMdp.setText(u.getMdp());
+
+            // Initials
+            String initials = "";
+            if(!u.getPrenom().isEmpty()) initials += u.getPrenom().charAt(0);
+            if(!u.getNom().isEmpty()) initials += u.getNom().charAt(0);
+            lblInitials.setText(initials.toUpperCase());
+
+            // Role & Couleur Avatar
+            if (u instanceof Proprietaire) {
+                lblRole.setText("PROPRIÉTAIRE");
+                lblRole.setForeground(Theme.PRIMARY);
+                avatarCircle.setBackground(Theme.SIDEBAR_BG);
+            } else {
+                lblRole.setText("RÉPARATEUR");
+                lblRole.setForeground(new Color(16, 185, 129)); // Vert
+                avatarCircle.setBackground(new Color(16, 185, 129));
+            }
         }
     }
 
@@ -204,7 +227,7 @@ public class ViewProfile extends JPanel {
         if (u == null) return;
 
         if (txtNom.getText().isEmpty() || new String(txtMdp.getPassword()).isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Champs obligatoires manquants.", "Erreur", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Nom et Mot de passe requis.", "Attention", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -216,7 +239,11 @@ public class ViewProfile extends JPanel {
             u.setMdp(new String(txtMdp.getPassword()));
 
             metier.modifierUtilisateur(u);
-            JOptionPane.showMessageDialog(this, "Profil mis à jour !", "Succès", JOptionPane.INFORMATION_MESSAGE);
+            
+            JOptionPane.showMessageDialog(this, "Modifications enregistrées !", "Succès", JOptionPane.INFORMATION_MESSAGE);
+            chargerDonnees();
+            frame.setCurrentUser(u); // Refresh Sidebar
+            
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Erreur : " + e.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
         }
