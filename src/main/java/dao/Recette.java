@@ -20,7 +20,7 @@ import lombok.NoArgsConstructor;
 @Entity
 public class Recette {
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private int id;
 	private double montant;
 	private String typeOperation;

@@ -28,7 +28,7 @@ import lombok.ToString;
 
 public class Boutique {
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private int idb;
 	@Column(length = 30)
 	private String nomB;

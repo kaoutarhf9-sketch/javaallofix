@@ -23,7 +23,7 @@ import lombok.experimental.SuperBuilder;
 public abstract class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     protected int idU;
 
     @Column(length = 20, nullable = false) 

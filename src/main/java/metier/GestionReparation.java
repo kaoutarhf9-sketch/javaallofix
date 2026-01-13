@@ -83,6 +83,10 @@ public class GestionReparation implements IGestionReparation {
                 r.setReste(0.0);
                 r.setAvance(r.getPrixTotal());
             }
+            else if (r.getEtat() == EtatReparation.ANNULEE) {
+                r.setAvance(0.0); // On rend l'avance au client -> 0 encaissé
+                r.setReste(0.0);  // La dette est annulée -> 0 restant
+            }
 
             em.merge(r);
             tx.commit();
@@ -152,4 +156,5 @@ public class GestionReparation implements IGestionReparation {
             em.close();
         }
     }
+    
 }

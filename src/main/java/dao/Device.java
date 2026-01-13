@@ -12,7 +12,7 @@ import lombok.*;
 public class Device {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int idDevice;
 
     private String type;
