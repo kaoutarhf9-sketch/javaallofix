@@ -2,6 +2,8 @@ package presentation;
 
 import dao.Client;
 import dao.Reparation;
+import dao.User; 
+import dao.Reparateur; 
 import metier.GestionReparation;
 
 import javax.swing.*;
@@ -14,8 +16,10 @@ public class ReparationPanel extends JPanel {
     private JPanel devicesContainer;
     private ViewListeReparation historiqueVue;
     private GestionReparation gestionReparation;
+    private ModernMainFrame frame; 
 
-    public ReparationPanel() {
+    public ReparationPanel(ModernMainFrame frame) { 
+        this.frame = frame;
         setLayout(new BorderLayout());
         gestionReparation = new GestionReparation();
 
@@ -48,6 +52,15 @@ public class ReparationPanel extends JPanel {
     }
 
     private void saveAll() {
+        // 0. Récupérer le Réparateur connecté
+        User currentUser = frame.getCurrentUser();
+        if (!(currentUser instanceof Reparateur)) {
+             // 🔥 CORRECTION ICI : ERROR_MESSAGE au lieu de ERROR_ERROR
+             JOptionPane.showMessageDialog(this, "Erreur : Vous devez être connecté en tant que Réparateur.", "Accès Refusé", JOptionPane.ERROR_MESSAGE);
+             return;
+        }
+        Reparateur reparateurConnecte = (Reparateur) currentUser;
+
         // 1. Récupérer le Client
         Client client = ClientPanel.getClientFromForm();
         if (client == null) {
@@ -66,8 +79,8 @@ public class ReparationPanel extends JPanel {
             for (Component comp : devicesContainer.getComponents()) {
                 if (comp instanceof DeviceFormPanel) {
                     DeviceFormPanel panel = (DeviceFormPanel) comp;
-                    // On demande au panel de fabriquer l'objet en lui donnant le client
-                    Reparation r = panel.getReparationReadyToSave(client);
+                    // ✅ On passe le client ET le réparateur connecté
+                    Reparation r = panel.getReparationReadyToSave(client, reparateurConnecte);
                     reparationsASauvegarder.add(r);
                 }
             }
@@ -80,15 +93,15 @@ public class ReparationPanel extends JPanel {
             return;
         }
 
-        // 4. Sauvegarde en boucle (Idéalement, à faire en une seule transaction métier)
+        // 4. Sauvegarde en boucle
         for (Reparation r : reparationsASauvegarder) {
-            gestionReparation.save(r);
+            gestionReparation.save(r); 
         }
 
         // 5. Succès & Nettoyage
         JOptionPane.showMessageDialog(this, "✅ Succès ! " + reparationsASauvegarder.size() + " réparation(s) enregistrée(s) pour le client " + client.getNom());
 
-        // Refresh Historique
+        // Refresh Historique (si la vue est active/liée)
         if (historiqueVue != null) historiqueVue.refreshTable();
 
         // Reset Interface

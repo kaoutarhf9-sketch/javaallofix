@@ -5,6 +5,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
 public class ViewDashboardReparateur extends JPanel {
+    
     private ModernMainFrame frame;
     
     // On garde juste les panels nécessaires pour une nouvelle réparation
@@ -23,7 +24,13 @@ public class ViewDashboardReparateur extends JPanel {
 
         // 1. EN-TÊTE
         JLabel lblTitre = new JLabel("Atelier de Réparation");
-        lblTitre.setFont(Theme.FONT_HERO);
+        // Utilisation de la police du thème, ou fallback si Theme.FONT_HERO n'existe pas
+        try {
+            lblTitre.setFont(Theme.FONT_HERO);
+        } catch (Exception e) {
+            lblTitre.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        }
+        
         lblTitre.setForeground(Theme.TEXT_HEADLINE);
         lblTitre.setBorder(new EmptyBorder(0, 0, 20, 0));
         add(lblTitre, BorderLayout.NORTH);
@@ -39,7 +46,9 @@ public class ViewDashboardReparateur extends JPanel {
 
         // Instanciation des sous-composants
         ClientPanel clientPanel = new ClientPanel();
-        ReparationPanel reparationPanel = new ReparationPanel(); 
+        
+        // 🔥 CORRECTION ICI : On passe 'this.frame' au constructeur
+        ReparationPanel reparationPanel = new ReparationPanel(this.frame); 
         
         // Liaison : Quand on valide une réparation, on met à jour la vue historique en cache
         reparationPanel.setHistoriqueVue(this.viewHistoriqueRef);

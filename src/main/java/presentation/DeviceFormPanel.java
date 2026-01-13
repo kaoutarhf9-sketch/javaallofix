@@ -120,7 +120,7 @@ public class DeviceFormPanel extends JPanel {
     }
 
     // 🔥 MÉTHODE CLÉ : Elle fabrique la Réparation pour le compte du client fourni
-    public Reparation getReparationReadyToSave(Client clientUnique) {
+    public Reparation getReparationReadyToSave(Client clientUnique, Reparateur reparateurConnecte) {
         
         // 1. Validation locale
         if (txtCause.getText().isEmpty() || txtPrixTotal.getText().isEmpty()) {
@@ -161,6 +161,7 @@ public class DeviceFormPanel extends JPanel {
                 .dateDepot(LocalDate.now()) // ✅ Date du jour
                 .etat(EtatReparation.EN_ATTENTE) // ✅ AJOUT CRUCIAL : Statut par défaut
                 .device(device)
+                .reparateur(reparateurConnecte)
                 .build();
     }
 
