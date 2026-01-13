@@ -7,8 +7,5 @@ public class CodeGenerator {
         return "CL-" + System.currentTimeMillis();
     }
 
-    // 🔹 (optionnel pour plus tard) Code réparation
-    public static String generateReparationCode() {
-        return "REP-" + System.currentTimeMillis();
-    }
+    
 }

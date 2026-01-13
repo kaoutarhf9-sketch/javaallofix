@@ -23,6 +23,9 @@ public class Reparation {
     private Double avance;
     private Double reste;
     private LocalDate dateDepot;
+    private LocalDate dateDebut;
+    private LocalDate dateFin;
+    
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

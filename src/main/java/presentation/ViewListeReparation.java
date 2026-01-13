@@ -29,9 +29,9 @@ public class ViewListeReparation extends JPanel {
     private TableRowSorter<DefaultTableModel> sorter;
     
     private List<Reparation> cacheReparations;
-    private boolean modeHistorique; // true = Archives (Livrées + Annulées), false = En cours
+    private boolean modeHistorique; // true = Archives, false = En cours
 
-    // Couleurs du Thème
+    // Couleurs
     private final Color HEADER_BG = new Color(30, 41, 59); 
     private final Color HEADER_TXT = Color.WHITE;
     private final Color ROW_SELECTED = new Color(224, 231, 255); 
@@ -60,7 +60,6 @@ public class ViewListeReparation extends JPanel {
         container.setOpaque(false);
         container.setBorder(new EmptyBorder(0, 0, 20, 0));
         
-        // Titre dynamique mis à jour
         String titreTxt = modeHistorique ? "Historique (Livrés & Annulés)" : "Atelier (En Cours)";
         JLabel title = new JLabel(titreTxt);
         title.setFont(new Font("Segoe UI", Font.BOLD, 26));
@@ -107,11 +106,17 @@ public class ViewListeReparation extends JPanel {
         card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createMatteBorder(1, 1, 2, 1, new Color(226, 232, 240)));
 
-        String[] columns = {"CODE", "CLIENT", "APPAREIL", "PANNE", "DATE", "PRIX", "AVANCE", "RESTE", "ÉTAT", "ID_REP", "RÉPARATEUR", "ACTIONS"};
+        // 🔥 MISE À JOUR DES COLONNES AVEC DATE DEBUT / FIN
+        String[] columns = {
+            "CODE", "APPAREIL", "PANNE", "DÉPOT", 
+            "PRIX", "AVANCE", "RESTE", "ÉTAT", 
+            "DÉBUT", "FIN", // Index 8 et 9
+            "ID_REP", "RÉPARATEUR", "ACTIONS"
+        };
         
         tableModel = new DefaultTableModel(columns, 0) {
             @Override public boolean isCellEditable(int row, int col) { 
-                return col == 11; // Seule la colonne Actions est cliquable
+                return col == 12; // La colonne ACTIONS est à l'index 12 maintenant
             }
         };
 
@@ -135,23 +140,27 @@ public class ViewListeReparation extends JPanel {
         header.setPreferredSize(new Dimension(0, 50));
         header.setReorderingAllowed(false);
         
+        // Renderers
         table.getColumnModel().getColumn(0).setCellRenderer(new GroupedCellRenderer());
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
-        for(int i=4; i<=7; i++) table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
         
-        table.getColumnModel().getColumn(8).setCellRenderer(new RoundedStatusRenderer());
+        // Centrer les colonnes de prix et dates
+        for(int i=4; i<=9; i++) table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
         
-        table.getColumnModel().getColumn(9).setMinWidth(0); table.getColumnModel().getColumn(9).setMaxWidth(0); table.getColumnModel().getColumn(9).setWidth(0);
+        // Renderer d'État (La pilule colorée) - Index 7
+        table.getColumnModel().getColumn(7).setCellRenderer(new RoundedStatusRenderer());
+        
+        // Masquer la colonne ID (Index 10)
+        table.getColumnModel().getColumn(10).setMinWidth(0); table.getColumnModel().getColumn(10).setMaxWidth(0); table.getColumnModel().getColumn(10).setWidth(0);
 
-        // --- CONFIGURATION ACTIONS ---
+        // --- CONFIGURATION ACTIONS (Index 12) ---
         if (!modeHistorique) {
             TableActionEvent event = new TableActionEvent() {
                 @Override public void onStart(int row) { updateStatusFromButton(row, EtatReparation.EN_COURS); }
                 @Override public void onBlock(int row) { updateStatusFromButton(row, EtatReparation.BLOQUEE); }
                 @Override public void onFinish(int row) { updateStatusFromButton(row, EtatReparation.TERMINEE); }
                 
-                // Si on annule, ça part dans l'historique aussi
                 @Override public void onCancel(int row) { 
                     int confirm = JOptionPane.showConfirmDialog(frame, "Voulez-vous vraiment annuler cette réparation ?", "Annulation", JOptionPane.YES_NO_OPTION);
                     if(confirm == JOptionPane.YES_OPTION) updateStatusFromButton(row, EtatReparation.ANNULEE);
@@ -163,25 +172,25 @@ public class ViewListeReparation extends JPanel {
                 }
             };
 
-            table.getColumnModel().getColumn(11).setCellRenderer(new TableActionCellRenderer());
-            table.getColumnModel().getColumn(11).setCellEditor(new TableActionCellEditor(event));
-            table.getColumnModel().getColumn(11).setMinWidth(290);
-            table.getColumnModel().getColumn(11).setMaxWidth(350);
+            table.getColumnModel().getColumn(12).setCellRenderer(new TableActionCellRenderer());
+            table.getColumnModel().getColumn(12).setCellEditor(new TableActionCellEditor(event));
+            table.getColumnModel().getColumn(12).setMinWidth(290);
+            table.getColumnModel().getColumn(12).setMaxWidth(350);
         } else {
-            table.getColumnModel().getColumn(11).setMinWidth(0);
-            table.getColumnModel().getColumn(11).setMaxWidth(0);
+            table.getColumnModel().getColumn(12).setMinWidth(0);
+            table.getColumnModel().getColumn(12).setMaxWidth(0);
         }
 
         // Clic Ligne pour Détails
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (table.getSelectedColumn() != 11) { 
+                if (table.getSelectedColumn() != 12) { 
                     if (e.getClickCount() == 2) { 
                         int row = table.getSelectedRow();
                         if (row != -1) {
                             int modelRow = table.convertRowIndexToModel(row);
-                            int idRep = (int) tableModel.getValueAt(modelRow, 9);
+                            int idRep = (int) tableModel.getValueAt(modelRow, 10); // ID est à l'index 10
                             showClientDetails(idRep);
                         }
                     }
@@ -210,32 +219,27 @@ public class ViewListeReparation extends JPanel {
         }
     }
 
-    // --- 4. CHARGEMENT DES DONNÉES (FILTRAGE MODIFIÉ) ---
+    // --- 4. CHARGEMENT DES DONNÉES ---
     public void refreshTable() {
         if (metier == null) return;
         User currentUser = frame.getCurrentUser();
         
-        if (currentUser instanceof Reparateur && !(currentUser instanceof Proprietaire)) {
-            table.getColumnModel().getColumn(10).setMinWidth(0); table.getColumnModel().getColumn(10).setMaxWidth(0);
-        } else {
-            table.getColumnModel().getColumn(10).setMinWidth(100); table.getColumnModel().getColumn(10).setMaxWidth(200);
-        }
+        // Cacher la colonne "Réparateur" (Index 11) si je ne veux voir que mes dossiers
+        // Comme le proprio ne veut voir que SES dossiers, le nom du réparateur est toujours le sien, donc on peut le cacher aussi si on veut.
+        // Ici je le laisse affiché pour vérification, mais on peut mettre setMinWidth(0).
 
         new SwingWorker<List<Reparation>, Void>() {
             @Override
             protected List<Reparation> doInBackground() throws Exception {
-                List<Reparation> rawList = (currentUser instanceof Reparateur) ? 
-                    metier.findByReparateur(currentUser.getIdU()) : metier.findAll();
+                // 🔥 MODIFICATION ICI : PROPRIÉTAIRE NE VOIT QUE SES RÉPARATIONS
+                // On utilise findByReparateur quelque soit le rôle (Reparateur ou Proprietaire)
+                // car le Proprio veut voir SES dossiers et pas ceux des autres.
+                
+                List<Reparation> rawList = metier.findByReparateur(currentUser.getIdU());
                 
                 List<Reparation> filteredList = new ArrayList<>();
                 for (Reparation r : rawList) {
-                    
-                    // 🔥 MODIFICATION ICI : Archivé = LIVREE ou ANNULEE
                     boolean isArchive = (r.getEtat() == EtatReparation.LIVREE || r.getEtat() == EtatReparation.ANNULEE);
-                    
-                    // Logique booléenne simple :
-                    // Si modeHistorique est TRUE, on veut isArchive TRUE.
-                    // Si modeHistorique est FALSE, on veut isArchive FALSE.
                     if (modeHistorique == isArchive) {
                         filteredList.add(r);
                     }
@@ -262,9 +266,9 @@ public class ViewListeReparation extends JPanel {
                             }
                             String nomReparateur = (r.getReparateur() != null) ? r.getReparateur().getNom() : "-";
 
+                            // 🔥 AJOUT DE r.getDateDebut() et r.getDateFin()
                             tableModel.addRow(new Object[]{
                                 codeClient, 
-                                clientNom, 
                                 appareil, 
                                 r.getCause(), 
                                 r.getDateDepot(),
@@ -272,9 +276,11 @@ public class ViewListeReparation extends JPanel {
                                 String.format("%.2f Dh", r.getAvance()), 
                                 String.format("%.2f Dh", r.getReste()),
                                 r.getEtat(), 
-                                r.getIdReparation(), 
-                                nomReparateur, 
-                                r.getEtat()
+                                r.getDateDebut(), // Index 8
+                                r.getDateFin(),   // Index 9
+                                r.getIdReparation(), // Index 10 (Caché)
+                                nomReparateur,       // Index 11
+                                r.getEtat()          // Index 12 (Actions)
                             });
                         }
                     }
@@ -287,7 +293,7 @@ public class ViewListeReparation extends JPanel {
         if (table.isEditing()) table.getCellEditor().stopCellEditing();
         
         int modelRow = table.convertRowIndexToModel(row);
-        int idRep = (int) tableModel.getValueAt(modelRow, 9);
+        int idRep = (int) tableModel.getValueAt(modelRow, 10); // ID est à l'index 10
         
         Reparation targetTemp = null;
         for(Reparation r : cacheReparations) { if(r.getIdReparation() == idRep) { targetTemp = r; break; } }
@@ -296,8 +302,17 @@ public class ViewListeReparation extends JPanel {
         if(target != null) {
             try { 
                 target.setEtat(newStatus);
+                
+                // GESTION DATES
+                if (newStatus == EtatReparation.EN_COURS && target.getDateDebut() == null) {
+                    target.setDateDebut(java.time.LocalDate.now());
+                }
+                if (newStatus == EtatReparation.TERMINEE) {
+                    target.setDateFin(java.time.LocalDate.now());
+                }
+
                 metier.update(target);
-                refreshTable(); // La ligne changera de tableau automatiquement si elle devient LIVREE ou ANNULEE
+                refreshTable(); 
 
                 if (newStatus == EtatReparation.TERMINEE) {
                     Client client = target.getDevice().getClient();
