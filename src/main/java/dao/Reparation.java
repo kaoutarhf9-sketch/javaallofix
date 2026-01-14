@@ -42,4 +42,10 @@ public class Reparation {
     }
     @ManyToOne
     private Reparateur reparateur;
+    
+    @ManyToOne
+    private Proprietaire proprietaire;
+    
+    
+    private boolean estEncaissee = false;
 }

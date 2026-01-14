@@ -50,17 +50,18 @@ public class ViewRecette extends JPanel {
         sorter = new TableRowSorter<>(model);
         table.setRowSorter(sorter);
 
-        // Masquer ID
+        // Masquer la colonne ID (Index 0)
         table.getColumnModel().getColumn(0).setMinWidth(0);
         table.getColumnModel().getColumn(0).setMaxWidth(0);
 
         styleTable(table);
 
-        comboPeriode = new JComboBox<>(new String[]{"JOUR", "SEMAINE", "MOIS"});
+        comboPeriode = new JComboBox<>(new String[]{"JOUR", "SEMAINE", "MOIS", "TOUT"});
+        comboPeriode.setSelectedItem("TOUT");
         comboPeriode.setPreferredSize(new Dimension(120, 35));
         comboPeriode.addActionListener(e -> refresh());
 
-        // Initialisation de la barre de recherche
+        // Barre de recherche
         txtSearch = new JTextField();
         txtSearch.setPreferredSize(new Dimension(200, 35));
         txtSearch.setBorder(BorderFactory.createCompoundBorder(
@@ -68,41 +69,111 @@ public class ViewRecette extends JPanel {
             new EmptyBorder(0, 10, 0, 10)
         ));
         
-        // Filtrage en temps réel
         txtSearch.getDocument().addDocumentListener(new DocumentListener() {
             public void insertUpdate(DocumentEvent e) { filter(); }
             public void removeUpdate(DocumentEvent e) { filter(); }
             public void changedUpdate(DocumentEvent e) { filter(); }
             private void filter() {
                 String text = txtSearch.getText();
-                if (text.trim().length() == 0) {
-                    sorter.setRowFilter(null);
-                } else {
-                    // Filtre sur la colonne PARTENAIRE (index 3)
-                    sorter.setRowFilter(RowFilter.regexFilter("(?i)" + text, 3));
-                }
+                if (text.trim().length() == 0) sorter.setRowFilter(null);
+                else sorter.setRowFilter(RowFilter.regexFilter("(?i)" + text, 3));
             }
         });
 
-        lblTotalCredit = createStatLabel(new Color(231, 76, 60)); 
-        lblTotalVerse = createStatLabel(new Color(46, 204, 113));  
+        lblTotalCredit = createStatLabel(new Color(231, 76, 60)); // Rouge
+        lblTotalVerse = createStatLabel(new Color(46, 204, 113)); // Vert
+    }
+
+    private void styleTable(JTable t) {
+        t.setRowHeight(45);
+        t.getTableHeader().setBackground(Color.WHITE);
+        t.getTableHeader().setPreferredSize(new Dimension(0, 40));
+        
+        // Couleur selon le Type
+        t.getColumnModel().getColumn(2).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+                JLabel l = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+                if ("CREDIT".equals(value)) l.setForeground(new Color(231, 76, 60)); // Rouge (Dette)
+                else l.setForeground(new Color(46, 204, 113)); // Vert (Versement)
+                return l;
+            }
+        });
+
+        // Rendu du Bouton "Rendre"
+        t.getColumnModel().getColumn(6).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+                if ("RENDRE".equals(value)) {
+                    JButton btn = new JButton("Régulariser");
+                    btn.setBackground(new Color(37, 99, 235)); // Bleu
+                    btn.setForeground(Color.WHITE);
+                    btn.setFont(new Font("Segoe UI", Font.BOLD, 11));
+                    btn.setBorderPainted(false);
+                    return btn;
+                }
+                return new JLabel(value != null ? value.toString() : "");
+            }
+        });
+
+        // --- GESTION DU CLIC SUR LE BOUTON ---
+        t.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int col = t.columnAtPoint(e.getPoint());
+                int row = t.rowAtPoint(e.getPoint());
+                
+                if (col == 6 && row != -1) { // Colonne Action
+                    int modelRow = t.convertRowIndexToModel(row);
+                    Object val = model.getValueAt(modelRow, col);
+                    
+                    if ("RENDRE".equals(val)) {
+                        int id = (int) model.getValueAt(modelRow, 0);
+                        String type = (String) model.getValueAt(modelRow, 2);
+                        
+                        String msg;
+                        // Adaptation du message selon votre logique
+                        if ("CREDIT".equals(type)) {
+                            msg = "Confirmer que vous avez REMBOURSÉ cette dette (Argent sorti de la caisse) ?";
+                        } else {
+                            msg = "Confirmer que cet argent est REVENU dans la caisse ?";
+                        }
+                        
+                        int confirm = JOptionPane.showConfirmDialog(null, msg, "Confirmation", JOptionPane.YES_NO_OPTION);
+                            
+                        if (confirm == JOptionPane.YES_OPTION) {
+                            // 1. Mise à jour en Base de Données
+                            metier.marquerCommeRendu(id);
+                            
+                            // 2. Rafraîchir ce tableau (Recettes)
+                            refresh();
+                            
+                            // 3. 🔥 ACTUALISATION AUTOMATIQUE DE LA CAISSE
+                            if (frame != null) {
+                                frame.refreshCaisseReparateur(); 
+                            }
+                            
+                            JOptionPane.showMessageDialog(null, "C'est noté ! La caisse a été mise à jour.");
+                        }
+                    }
+                }
+            }
+        });
     }
 
     private void setupLayout() {
-        // --- HEADER (Titre + Stats) ---
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
-        JLabel title = new JLabel("Recettes & Échanges");
+        JLabel title = new JLabel("Gestion Recettes & Dettes");
         title.setFont(new Font("Segoe UI", Font.BOLD, 26));
         header.add(title, BorderLayout.WEST);
 
         JPanel statsContainer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 0));
         statsContainer.setOpaque(false);
-        statsContainer.add(createStatGroup("À RECEVOIR", lblTotalCredit));
-        statsContainer.add(createStatGroup("DÉJÀ VERSÉ", lblTotalVerse));
+        statsContainer.add(createStatGroup("À REMBOURSER (Dettes)", lblTotalCredit));
+        statsContainer.add(createStatGroup("ARGENT DEHORS (Prêts)", lblTotalVerse));
         header.add(statsContainer, BorderLayout.EAST);
 
-        // --- TOOLBAR (Recherche + Période + Bouton) ---
         JPanel toolbar = new JPanel(new BorderLayout());
         toolbar.setOpaque(false);
         
@@ -123,7 +194,6 @@ public class ViewRecette extends JPanel {
         toolbar.add(leftTool, BorderLayout.WEST);
         toolbar.add(btnAdd, BorderLayout.EAST);
 
-        // --- TABLE ---
         JPanel tableCard = new JPanel(new BorderLayout());
         tableCard.setBackground(Color.WHITE);
         tableCard.setBorder(new EmptyBorder(15, 15, 15, 15));
@@ -140,57 +210,6 @@ public class ViewRecette extends JPanel {
         add(centerPanel, BorderLayout.CENTER);
     }
 
-    private void styleTable(JTable t) {
-        t.setRowHeight(45);
-        t.getTableHeader().setBackground(Color.WHITE);
-        t.getTableHeader().setPreferredSize(new Dimension(0, 40));
-        
-        t.getColumnModel().getColumn(2).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int col) {
-                JLabel l = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
-                if ("CREDIT".equals(value)) l.setForeground(new Color(231, 76, 60));
-                else l.setForeground(new Color(46, 204, 113));
-                return l;
-            }
-        });
-
-        t.getColumnModel().getColumn(6).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int col) {
-                if ("RENDRE".equals(value)) {
-                    JButton btn = new JButton("Rendre");
-                    btn.setBackground(new Color(46, 204, 113));
-                    btn.setForeground(Color.WHITE);
-                    btn.setFont(new Font("Segoe UI", Font.BOLD, 11));
-                    btn.setBorderPainted(false);
-                    return btn;
-                }
-                return new JLabel(value != null ? value.toString() : "");
-            }
-        });
-
-        t.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                int col = t.columnAtPoint(e.getPoint());
-                int row = t.rowAtPoint(e.getPoint());
-                if (col == 6 && row != -1) {
-                    // Attention : avec le sorter, il faut convertir l'index de la vue vers le modèle
-                    int modelRow = t.convertRowIndexToModel(row);
-                    Object val = model.getValueAt(modelRow, col);
-                    if ("RENDRE".equals(val)) {
-                        int id = (int) model.getValueAt(modelRow, 0);
-                        if (JOptionPane.showConfirmDialog(null, "Marquer comme rendu ?") == JOptionPane.YES_OPTION) {
-                            metier.marquerCommeRendu(id);
-                            refresh();
-                        }
-                    }
-                }
-            }
-        });
-    }
-
     public void refresh() {
         model.setRowCount(0);
         String periode = (String) comboPeriode.getSelectedItem();
@@ -198,16 +217,22 @@ public class ViewRecette extends JPanel {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
         for (Recette r : recettes) {
+            // Afficher le bouton "RENDRE" si le statut est NON_RENDU (peu importe si Crédit ou Versement)
             String action = "NON_RENDU".equals(r.getStatut()) ? "RENDRE" : "-";
-            model.addRow(new Object[]{
-                r.getId(),
-                r.getDateOperation().format(formatter),
-                r.getTypeOperation(),
-                r.getPartenaire() != null ? r.getPartenaire() : "-",
-                String.format("%.2f DH", r.getMontant()),
-                r.getStatut(),
-                action
-            });
+            
+            if (frame.getCurrentUser() != null && r.getReparateur() != null 
+                && r.getReparateur().getIdU() == frame.getCurrentUser().getIdU()) {
+                
+                model.addRow(new Object[]{
+                    r.getId(),
+                    r.getDateOperation().format(formatter),
+                    r.getTypeOperation(),
+                    r.getPartenaire() != null ? r.getPartenaire() : "-",
+                    String.format("%.2f DH", r.getMontant()),
+                    r.getStatut(),
+                    action
+                });
+            }
         }
 
         lblTotalCredit.setText(String.format("%.2f DH", metier.calculerTotalType(recettes, "CREDIT")));
@@ -230,12 +255,13 @@ public class ViewRecette extends JPanel {
         gbc.gridx = 1; dialog.add(cbType, gbc);
         gbc.gridy = 1; gbc.gridx = 0; dialog.add(new JLabel("Montant:"), gbc);
         gbc.gridx = 1; dialog.add(txtMnt, gbc);
-        gbc.gridy = 2; gbc.gridx = 0; dialog.add(new JLabel("Partenaire:"), gbc);
+        gbc.gridy = 2; gbc.gridx = 0; dialog.add(new JLabel("Partenaire / Motif:"), gbc);
         gbc.gridx = 1; dialog.add(txtPart, gbc);
 
         JButton btn = new JButton("Enregistrer");
         btn.setBackground(new Color(46, 204, 113));
         btn.setForeground(Color.WHITE);
+        
         btn.addActionListener(e -> {
             try {
                 Recette r = Recette.builder()
@@ -246,11 +272,22 @@ public class ViewRecette extends JPanel {
                     .statut("NON_RENDU")
                     .reparateur((Reparateur)frame.getCurrentUser())
                     .build();
+                    
                 metier.ajouterTransaction(r);
                 dialog.dispose();
+                
+                // 1. Refresh Local
                 refresh();
-            } catch(Exception ex) { JOptionPane.showMessageDialog(null, "Données invalides"); }
+                
+                // 2. 🔥 ACTUALISATION AUTOMATIQUE DE LA CAISSE (Après ajout)
+                if(frame != null) frame.refreshCaisseReparateur();
+                
+                JOptionPane.showMessageDialog(null, "Opération ajoutée avec succès !");
+            } catch(Exception ex) { 
+                JOptionPane.showMessageDialog(null, "Erreur : " + ex.getMessage()); 
+            }
         });
+        
         gbc.gridy = 3; gbc.gridx = 0; gbc.gridwidth = 2;
         dialog.add(btn, gbc);
         dialog.setVisible(true);

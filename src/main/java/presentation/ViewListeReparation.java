@@ -14,8 +14,8 @@ import javax.swing.event.DocumentListener;
 import dao.Reparation;
 import dao.Client;
 import dao.User;
-import dao.Reparateur;
-import dao.Proprietaire;
+import dao.Reparateur;   // Import nécessaire
+import dao.Proprietaire; // Import nécessaire
 import metier.GestionReparation;
 import metier.EtatReparation;
 
@@ -29,7 +29,7 @@ public class ViewListeReparation extends JPanel {
     private TableRowSorter<DefaultTableModel> sorter;
     
     private List<Reparation> cacheReparations;
-    private boolean modeHistorique; // true = Archives, false = En cours
+    private boolean modeHistorique; // true = Archives (LIVRÉE/ANNULÉE), false = En cours
 
     // Couleurs
     private final Color HEADER_BG = new Color(30, 41, 59); 
@@ -106,7 +106,6 @@ public class ViewListeReparation extends JPanel {
         card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createMatteBorder(1, 1, 2, 1, new Color(226, 232, 240)));
 
-        // 🔥 MISE À JOUR DES COLONNES AVEC DATE DEBUT / FIN
         String[] columns = {
             "CODE", "APPAREIL", "PANNE", "DÉPOT", 
             "PRIX", "AVANCE", "RESTE", "ÉTAT", 
@@ -116,7 +115,7 @@ public class ViewListeReparation extends JPanel {
         
         tableModel = new DefaultTableModel(columns, 0) {
             @Override public boolean isCellEditable(int row, int col) { 
-                return col == 12; // La colonne ACTIONS est à l'index 12 maintenant
+                return col == 12; // Seule la colonne ACTIONS est éditable
             }
         };
 
@@ -145,7 +144,6 @@ public class ViewListeReparation extends JPanel {
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
         
-        // Centrer les colonnes de prix et dates
         for(int i=4; i<=9; i++) table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
         
         // Renderer d'État (La pilule colorée) - Index 7
@@ -177,11 +175,12 @@ public class ViewListeReparation extends JPanel {
             table.getColumnModel().getColumn(12).setMinWidth(290);
             table.getColumnModel().getColumn(12).setMaxWidth(350);
         } else {
+            // En mode historique, pas d'actions
             table.getColumnModel().getColumn(12).setMinWidth(0);
             table.getColumnModel().getColumn(12).setMaxWidth(0);
         }
 
-        // Clic Ligne pour Détails
+        // Clic Ligne pour Détails Client
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -219,29 +218,49 @@ public class ViewListeReparation extends JPanel {
         }
     }
 
-    // --- 4. CHARGEMENT DES DONNÉES ---
+    // --- 4. CHARGEMENT DES DONNÉES (CORRIGÉ AVEC DOUBLE CHECK) ---
     public void refreshTable() {
         if (metier == null) return;
         User currentUser = frame.getCurrentUser();
         
-        // Cacher la colonne "Réparateur" (Index 11) si je ne veux voir que mes dossiers
-        // Comme le proprio ne veut voir que SES dossiers, le nom du réparateur est toujours le sien, donc on peut le cacher aussi si on veut.
-        // Ici je le laisse affiché pour vérification, mais on peut mettre setMinWidth(0).
-
         new SwingWorker<List<Reparation>, Void>() {
             @Override
             protected List<Reparation> doInBackground() throws Exception {
-                // 🔥 MODIFICATION ICI : PROPRIÉTAIRE NE VOIT QUE SES RÉPARATIONS
-                // On utilise findByReparateur quelque soit le rôle (Reparateur ou Proprietaire)
-                // car le Proprio veut voir SES dossiers et pas ceux des autres.
-                
-                List<Reparation> rawList = metier.findByReparateur(currentUser.getIdU());
+                // 1. On récupère TOUT
+                List<Reparation> allReparations = metier.findAll();
                 
                 List<Reparation> filteredList = new ArrayList<>();
-                for (Reparation r : rawList) {
-                    boolean isArchive = (r.getEtat() == EtatReparation.LIVREE || r.getEtat() == EtatReparation.ANNULEE);
-                    if (modeHistorique == isArchive) {
-                        filteredList.add(r);
+                
+                for (Reparation r : allReparations) {
+                    
+                    // --- A. FILTRE DE PROPRIÉTÉ (STRICT) ---
+                    boolean isMine = false;
+                    
+                    if (currentUser instanceof Reparateur) {
+                        // Cas Réparateur : Je regarde la colonne "Reparateur"
+                        if (r.getReparateur() != null && r.getReparateur().getIdU() == currentUser.getIdU()) {
+                            isMine = true;
+                        }
+                    } 
+                    else if (currentUser instanceof Proprietaire) {
+                        // Cas Propriétaire : Je regarde la colonne "Proprietaire"
+                        if (r.getProprietaire() != null && r.getProprietaire().getIdU() == currentUser.getIdU()) {
+                            isMine = true;
+                        }
+                    }
+
+                    // Si ce n'est pas mon dossier, je passe
+                    if (!isMine) continue;
+
+                    // --- B. FILTRE D'AFFICHAGE (ACTIF vs HISTORIQUE) ---
+                    boolean isFinished = (r.getEtat() == EtatReparation.LIVREE || r.getEtat() == EtatReparation.ANNULEE);
+                    
+                    if (modeHistorique) {
+                        // Onglet Historique : On ne veut QUE les finies
+                        if (isFinished) filteredList.add(r);
+                    } else {
+                        // Onglet Atelier : On veut tout SAUF les finies
+                        if (!isFinished) filteredList.add(r);
                     }
                 }
                 return filteredList;
@@ -264,9 +283,15 @@ public class ViewListeReparation extends JPanel {
                                     clientNom = r.getDevice().getClient().getNom() + " " + r.getDevice().getClient().getPrenom();
                                 }
                             }
-                            String nomReparateur = (r.getReparateur() != null) ? r.getReparateur().getNom() : "-";
+                            
+                            // Affichage intelligent du nom
+                            String nomReparateur = "Inconnu";
+                            if (r.getReparateur() != null) {
+                                nomReparateur = r.getReparateur().getNom();
+                            } else if (r.getProprietaire() != null) {
+                                nomReparateur = "Moi (Patron)";
+                            }
 
-                            // 🔥 AJOUT DE r.getDateDebut() et r.getDateFin()
                             tableModel.addRow(new Object[]{
                                 codeClient, 
                                 appareil, 
@@ -276,11 +301,11 @@ public class ViewListeReparation extends JPanel {
                                 String.format("%.2f Dh", r.getAvance()), 
                                 String.format("%.2f Dh", r.getReste()),
                                 r.getEtat(), 
-                                r.getDateDebut(), // Index 8
-                                r.getDateFin(),   // Index 9
-                                r.getIdReparation(), // Index 10 (Caché)
-                                nomReparateur,       // Index 11
-                                r.getEtat()          // Index 12 (Actions)
+                                r.getDateDebut(), 
+                                r.getDateFin(),   
+                                r.getIdReparation(), 
+                                nomReparateur,       
+                                r.getEtat()          
                             });
                         }
                     }
@@ -303,7 +328,7 @@ public class ViewListeReparation extends JPanel {
             try { 
                 target.setEtat(newStatus);
                 
-                // GESTION DATES
+                // GESTION DATES AUTOMATIQUE
                 if (newStatus == EtatReparation.EN_COURS && target.getDateDebut() == null) {
                     target.setDateDebut(java.time.LocalDate.now());
                 }
@@ -312,20 +337,20 @@ public class ViewListeReparation extends JPanel {
                 }
 
                 metier.update(target);
+                
+                // Rafraîchissement
                 refreshTable(); 
 
+                // Notification Email si terminée
                 if (newStatus == EtatReparation.TERMINEE) {
                     Client client = target.getDevice().getClient();
-                    if (client.getEmail() != null && !client.getEmail().isEmpty() && client.getEmail().contains("@")) {
+                    if (client.getEmail() != null && client.getEmail().contains("@")) {
                         new Thread(() -> {
-                            String nomComplet = client.getNom() + " " + client.getPrenom();
-                            String appareil = target.getDevice().getMarque() + " " + target.getDevice().getType();
-                            
                             utils.EmailService.envoyerNotificationFinReparation(
                                 client.getEmail(),
-                                nomComplet,
+                                client.getNom() + " " + client.getPrenom(),
                                 client.getCodeClient(),
-                                appareil,
+                                target.getDevice().getMarque(),
                                 target.getAvance(),
                                 target.getReste()
                             );
@@ -341,7 +366,7 @@ public class ViewListeReparation extends JPanel {
     }
 
     // =========================================================
-    // CLASSES INTERNES
+    // CLASSES INTERNES (RENDERERS)
     // =========================================================
 
     class ClientInfoDialog extends JDialog {

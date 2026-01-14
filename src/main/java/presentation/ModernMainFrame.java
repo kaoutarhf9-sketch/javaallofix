@@ -24,16 +24,19 @@ public class ModernMainFrame extends JFrame {
     private ViewFormReparateur viewFormReparateur;
     private ViewDashboardProprio viewDashboardProprio; 
     private ViewFormBoutique viewFormBoutique; 
-    private ViewListReparateur viewListReparateur; 
+    private ViewListReparateur viewListReparateur;
+    
+    // 🔥 VUE CAISSE (PROPRIÉTAIRE)
+    private CaissePanel viewCaissePanel; 
     
     // --- VUES RÉPARATEUR ---
-    private ViewDashboardReparateur viewDashboardReparateur; // L'Atelier (Saisie)
+    private ViewDashboardReparateur viewDashboardReparateur; // Atelier + Caisse (Onglets)
+    private ViewListeReparation viewListeActive;      
+    private ViewListeReparation viewListeHistorique; 
     
-    // 🔥 MODIFICATION : ON SÉPARE EN DEUX LISTES
-    private ViewListeReparation viewListeActive;     // En cours / En attente / Terminée
-    private ViewListeReparation viewListeHistorique; // Livrée (Archivée)
-    
-    private ViewRecette viewRecette;                 // Les Recettes
+    // 🔥 VUE CAISSE (RÉPARATEUR - MENU)
+    private ViewCaisse viewCaisseReparateur; 
+    private ViewRecette viewRecette; 
 
     // --- VUE COMMUNE ---
     private ViewProfile viewProfile; 
@@ -44,7 +47,6 @@ public class ModernMainFrame extends JFrame {
     // --- CONSTANTES DE NAVIGATION ---
     public static final String VUE_ACCUEIL = "ACCUEIL";
     
-    // Login / Register
     public static final String VUE_LOGIN_PROPRIO = "LOGIN_PROPRIO";
     public static final String VUE_REGISTER_PROPRIO = "REGISTER_PROPRIO";
     public static final String VUE_LOGIN_REPARATEUR = "LOGIN_REPARATEUR";
@@ -55,33 +57,32 @@ public class ModernMainFrame extends JFrame {
     public static final String VUE_LISTE_REPARATEUR = "LISTE_REPARATEUR";
     public static final String VUE_FORM_BOUTIQUE = "FORM_BOUTIQUE";
     public static final String VUE_FORM_REPARATEUR = "FORM_REPARATEUR";
+    public static final String VUE_CAISSE_PROPRIO = "CAISSE_PROPRIO"; 
     
     // Espace Réparateur
-    public static final String VUE_REPARATEUR_ATELIER = "REP_ATELIER";
-    public static final String VUE_REPARATEUR_LISTE_ACTIVE = "REP_ACTIVE"; // 🔥 NOUVELLE CLEF
+    public static final String VUE_REPARATEUR_ATELIER = "REP_ATELIER"; // Dashboard (Onglets)
+    public static final String VUE_REPARATEUR_LISTE_ACTIVE = "REP_ACTIVE";
     public static final String VUE_REPARATEUR_HISTORIQUE = "REP_HISTORIQUE";
     public static final String VUE_REPARATEUR_RECETTE = "REP_RECETTE";
     
-    // Commun
+    // 🔥 VUE CAISSE RÉPARATEUR (MENU)
+    public static final String VUE_REPARATEUR_CAISSE = "REP_CAISSE"; 
+    
     public static final String VUE_PROFIL = "VUE_PROFIL"; 
 
     public ModernMainFrame() {
-        // 1. Init Métier
         try { metierUser = new GestionUser(); } catch (Exception e) {}
 
-        // 2. Config Fenêtre
         setTitle("AlloFix | Manager");
-        setSize(1280, 850);
+        setSize(1350, 850);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         getContentPane().setBackground(Theme.BACKGROUND);
         setLayout(new BorderLayout());
 
-        // 3. Sidebar Initiale
         sidebarPanel = createSidebar();
         add(sidebarPanel, BorderLayout.WEST);
 
-        // 4. Contenu Central
         cardLayout = new CardLayout();
         mainContentPanel = new JPanel(cardLayout);
         mainContentPanel.setBackground(Theme.BACKGROUND);
@@ -94,104 +95,89 @@ public class ModernMainFrame extends JFrame {
     }
     
     private void initViews() {
-        // --- INSTANCIATION DES VUES ---
-        
-        // Vues Propriétaire
+        // --- PROPRIÉTAIRE ---
+        this.viewDashboardProprio = new ViewDashboardProprio(this);
         this.viewBoutique = new ViewBoutique(this);
         this.viewFormReparateur = new ViewFormReparateur(this);
-        this.viewDashboardProprio = new ViewDashboardProprio(this);
         this.viewFormBoutique = new ViewFormBoutique(this);
         this.viewListReparateur = new ViewListReparateur(this);
+        this.viewCaissePanel = new CaissePanel(); // Caisse Proprio
         
-        // Vues Réparateur
-        // 🔥 ON INSTANCIE LES DEUX TYPES DE LISTES
-        // false = En cours (Tout sauf Livrée)
+        // --- RÉPARATEUR ---
         this.viewListeActive = new ViewListeReparation(this, false);
-        // true = Historique (Seulement Livrée)
         this.viewListeHistorique = new ViewListeReparation(this, true);
-        
-        // L'atelier a besoin de la liste active pour rafraîchir après ajout
         this.viewDashboardReparateur = new ViewDashboardReparateur(this, this.viewListeActive);
         
+        // 🔥 INSTANCIATION DES VUES FINANCIÈRES
+        this.viewCaisseReparateur = new ViewCaisse(this);
         this.viewRecette = new ViewRecette(this);
         
-        // Vue Commune
         this.viewProfile = new ViewProfile(this); 
 
         // --- AJOUT AU CARD LAYOUT ---
-        
-        // Accueil & Auth
         mainContentPanel.add(createWelcomePanel(), VUE_ACCUEIL);
         mainContentPanel.add(new ViewLogin(this, metierUser, "Propriétaire"), VUE_LOGIN_PROPRIO);
         mainContentPanel.add(new ViewLogin(this, metierUser, "Réparateur"), VUE_LOGIN_REPARATEUR);
         mainContentPanel.add(new ViewRegister(this, metierUser), VUE_REGISTER_PROPRIO);
 
-        // Navigation Propriétaire
+        // Proprio
         mainContentPanel.add(this.viewDashboardProprio, VUE_DASHBOARD_PROPRIO);
         mainContentPanel.add(this.viewBoutique, VUE_LISTE_BOUTIQUE);
         mainContentPanel.add(this.viewListReparateur, VUE_LISTE_REPARATEUR);
         mainContentPanel.add(this.viewFormBoutique, VUE_FORM_BOUTIQUE);
         mainContentPanel.add(this.viewFormReparateur, VUE_FORM_REPARATEUR);
+        mainContentPanel.add(this.viewCaissePanel, VUE_CAISSE_PROPRIO);
         
-        // Navigation Réparateur
+        // Reparateur
         mainContentPanel.add(this.viewDashboardReparateur, VUE_REPARATEUR_ATELIER);
-        // 🔥 AJOUT DES DEUX VUES AU CARD LAYOUT
         mainContentPanel.add(this.viewListeActive, VUE_REPARATEUR_LISTE_ACTIVE);
         mainContentPanel.add(this.viewListeHistorique, VUE_REPARATEUR_HISTORIQUE);
-        
         mainContentPanel.add(this.viewRecette, VUE_REPARATEUR_RECETTE);
         
-        // Commun
+        // 🔥 AJOUT VUE CAISSE
+        mainContentPanel.add(this.viewCaisseReparateur, VUE_REPARATEUR_CAISSE);
+        
         mainContentPanel.add(this.viewProfile, VUE_PROFIL);
     }
     
-    // --- NAVIGATION ---
     public void changerVue(String nomVue) {
         cardLayout.show(mainContentPanel, nomVue);
 
         // Refresh PROPRIO
+        if (nomVue.equals(VUE_DASHBOARD_PROPRIO) && viewDashboardProprio != null) viewDashboardProprio.updateStats();
         if (nomVue.equals(VUE_LISTE_BOUTIQUE) && viewBoutique != null) viewBoutique.refreshTable();
         if (nomVue.equals(VUE_FORM_REPARATEUR) && viewFormReparateur != null) {
-            viewFormReparateur.chargerLesBoutiques(); 
-            viewFormReparateur.resetFormulaire();
+            viewFormReparateur.chargerLesBoutiques(); viewFormReparateur.resetFormulaire();
         }
-        if (nomVue.equals(VUE_DASHBOARD_PROPRIO) && viewDashboardProprio != null) viewDashboardProprio.updateStats(); 
         if (nomVue.equals(VUE_LISTE_REPARATEUR) && viewListReparateur != null) viewListReparateur.refreshTable();
+        if (nomVue.equals(VUE_CAISSE_PROPRIO) && viewCaissePanel != null) viewCaissePanel.refreshData();
         
-        // Refresh REPARATEUR
-        // 🔥 REFRESH SÉPARÉ POUR CHAQUE LISTE
+        // Refresh RÉPARATEUR
         if (nomVue.equals(VUE_REPARATEUR_LISTE_ACTIVE) && viewListeActive != null) viewListeActive.refreshTable();
         if (nomVue.equals(VUE_REPARATEUR_HISTORIQUE) && viewListeHistorique != null) viewListeHistorique.refreshTable();
-        
         if (nomVue.equals(VUE_REPARATEUR_RECETTE) && viewRecette != null) viewRecette.refresh();
+        
+        // 🔥 REFRESH CAISSE RÉPARATEUR (Page Menu)
+        if (nomVue.equals(VUE_REPARATEUR_CAISSE) && viewCaisseReparateur != null) viewCaisseReparateur.refreshCalculations();
+        
+        // 🔥 REFRESH CAISSE INTERNE DASHBOARD (Si on va sur l'atelier)
+        if (nomVue.equals(VUE_REPARATEUR_ATELIER) && viewDashboardReparateur != null) viewDashboardReparateur.refreshCaisseInterne();
         
         // Refresh COMMUN
         if (nomVue.equals(VUE_PROFIL) && viewProfile != null) viewProfile.chargerDonnees();
     }
     
-    // --- GESTION DE SESSION ---
-    public void setCurrentUser(User u) { 
-        this.currentUser = u; 
-        updateUIState();
-    }
-    
+    public void setCurrentUser(User u) { this.currentUser = u; updateUIState(); }
     public User getCurrentUser() { return this.currentUser; }
-    
-    public Proprietaire getProprietaireConnecte() { 
-        return (currentUser instanceof Proprietaire) ? (Proprietaire) currentUser : null; 
-    }
+    public Proprietaire getProprietaireConnecte() { return (currentUser instanceof Proprietaire) ? (Proprietaire) currentUser : null; }
     
     private void updateUIState() {
         remove(sidebarPanel);
         sidebarPanel = createSidebar();
         add(sidebarPanel, BorderLayout.WEST);
-        revalidate();
-        repaint();
+        revalidate(); repaint();
     }
     
-    // ====================================================================================
-    // 🔥 SIDEBAR INTELLIGENTE
-    // ====================================================================================
     private JPanel createSidebar() {
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
@@ -199,7 +185,6 @@ public class ModernMainFrame extends JFrame {
         sidebar.setPreferredSize(new Dimension(260, 0));
         sidebar.setBorder(new EmptyBorder(40, 30, 40, 30));
 
-        // 1. LOGO
         JLabel textLogo = new JLabel("AlloFix");
         textLogo.setForeground(Color.WHITE);
         textLogo.setFont(new Font("Segoe UI", Font.BOLD, 32));
@@ -207,10 +192,7 @@ public class ModernMainFrame extends JFrame {
         sidebar.add(textLogo);
         sidebar.add(Box.createVerticalStrut(60));
 
-        // 2. MENU
         if (currentUser != null) {
-            
-            // Badge User
             String role = (currentUser instanceof Proprietaire) ? "Propriétaire" : "Réparateur";
             JLabel lblUser = new JLabel(currentUser.getNom());
             lblUser.setFont(new Font("Segoe UI", Font.BOLD, 16));
@@ -235,9 +217,10 @@ public class ModernMainFrame extends JFrame {
                 sidebar.add(createSidebarButton("Mes Boutiques", () -> changerVue(VUE_LISTE_BOUTIQUE)));
                 sidebar.add(Box.createVerticalStrut(5));
                 sidebar.add(createSidebarButton("Mon Équipe", () -> changerVue(VUE_LISTE_REPARATEUR)));
+                sidebar.add(Box.createVerticalStrut(5));
+                sidebar.add(createSidebarButton("Caisse & Commissions", () -> changerVue(VUE_CAISSE_PROPRIO)));
                 sidebar.add(Box.createVerticalStrut(20));
 
-                // 🔥 MENU ATELIER (Si Activé)
                 if (p.isEstReparateur()) {
                     JLabel lblAtelier = new JLabel("MON ATELIER");
                     lblAtelier.setFont(new Font("Segoe UI", Font.BOLD, 11));
@@ -248,29 +231,33 @@ public class ModernMainFrame extends JFrame {
 
                     sidebar.add(createSidebarButton("Nouvelle Réparation", () -> changerVue(VUE_REPARATEUR_ATELIER)));
                     sidebar.add(Box.createVerticalStrut(5));
-                    
-                    // 🔥 NOUVEL ONGLET AJOUTÉ ICI
                     sidebar.add(createSidebarButton("En Cours / À Traiter", () -> changerVue(VUE_REPARATEUR_LISTE_ACTIVE)));
                     sidebar.add(Box.createVerticalStrut(5));
-                    
                     sidebar.add(createSidebarButton("Historique (Livrées)", () -> changerVue(VUE_REPARATEUR_HISTORIQUE)));
                     sidebar.add(Box.createVerticalStrut(5));
+                    
+                    // 🔥 BOUTON MA CAISSE
+                    sidebar.add(createSidebarButton("Ma Caisse Perso", () -> changerVue(VUE_REPARATEUR_CAISSE)));
+                    sidebar.add(Box.createVerticalStrut(5));
+                    
                     sidebar.add(createSidebarButton("Mes Recettes", () -> changerVue(VUE_REPARATEUR_RECETTE)));
+                    
                     sidebar.add(Box.createVerticalStrut(20));
                 }
                 
                 sidebar.add(createSidebarButton("Mon Profil", () -> changerVue(VUE_PROFIL)));
             } 
             else if (currentUser instanceof Reparateur) {
-                // ✅ MENU RÉPARATEUR STANDARD
+                // MENU RÉPARATEUR STANDARD
                 sidebar.add(createSidebarButton("Nouvelle Réparation", () -> changerVue(VUE_REPARATEUR_ATELIER)));
                 sidebar.add(Box.createVerticalStrut(5));
-                
-                // 🔥 NOUVEL ONGLET AJOUTÉ ICI
                 sidebar.add(createSidebarButton("En Cours / À Traiter", () -> changerVue(VUE_REPARATEUR_LISTE_ACTIVE)));
                 sidebar.add(Box.createVerticalStrut(5));
-                
                 sidebar.add(createSidebarButton("Historique (Livrées)", () -> changerVue(VUE_REPARATEUR_HISTORIQUE)));
+                sidebar.add(Box.createVerticalStrut(5));
+                
+                // 🔥 BOUTON MA CAISSE
+                sidebar.add(createSidebarButton("Ma Caisse", () -> changerVue(VUE_REPARATEUR_CAISSE)));
                 sidebar.add(Box.createVerticalStrut(5));
                 
                 sidebar.add(createSidebarButton("Mes Recettes", () -> changerVue(VUE_REPARATEUR_RECETTE)));
@@ -323,7 +310,6 @@ public class ModernMainFrame extends JFrame {
         return btn;
     }
     
-    // --- ACCUEIL ---
     private JPanel createWelcomePanel() {
         JPanel p = new JPanel(new GridBagLayout());
         p.setBackground(Theme.BACKGROUND);
@@ -404,5 +390,23 @@ public class ModernMainFrame extends JFrame {
         System.setProperty("awt.useSystemAAFontSettings", "on");
         System.setProperty("swing.aatext", "true");
         SwingUtilities.invokeLater(() -> new ModernMainFrame().setVisible(true));
+    }
+
+    // 🔥 LA MÉTHODE MAGIQUE POUR SYNCHRONISER TOUTES LES CAISSES
+    public void refreshCaisseReparateur() {
+        // 1. Rafraîchir la vue caisse du Menu Latéral
+        if (this.viewCaisseReparateur != null) {
+            this.viewCaisseReparateur.refreshCalculations();
+        }
+        
+        // 2. Rafraîchir la vue caisse à l'intérieur du Dashboard (Onglets)
+        if (this.viewDashboardReparateur != null) {
+            this.viewDashboardReparateur.refreshCaisseInterne();
+        }
+        
+        // 3. Rafraîchir la caisse propriétaire (si pertinent)
+        if (this.viewCaissePanel != null) {
+            this.viewCaissePanel.refreshData();
+        }
     }
 }
