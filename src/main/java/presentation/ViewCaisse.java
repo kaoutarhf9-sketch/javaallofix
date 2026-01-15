@@ -51,7 +51,7 @@ public class ViewCaisse extends JPanel {
         header.setOpaque(false);
         header.setBorder(new EmptyBorder(0, 0, 20, 0));
 
-        JLabel title = new JLabel("Ma Trésorerie (Temps Réel)");
+        JLabel title = new JLabel("Ma Caisse");
         title.setFont(new Font("Segoe UI", Font.BOLD, 24));
         title.setForeground(new Color(30, 41, 59));
         
