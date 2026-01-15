@@ -10,7 +10,7 @@ public interface IGestionUser {
 
 	public void inscriptionProprietaire(Proprietaire p);
 	
-	void modifierUtilisateur(User u);
+	public void modifierUtilisateur(User u);
 
 
 }

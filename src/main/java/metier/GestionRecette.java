@@ -23,7 +23,7 @@ public class GestionRecette implements IGestionRecette {
         try {
             em.getTransaction().begin();
             
-            // Correction : Utiliser LocalDateTime.now() au lieu de LocalDate
+            
             if (r.getDateOperation() == null) {
                 r.setDateOperation(LocalDateTime.now());
             }
